@@ -1,6 +1,6 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-import { getFirestore, onSnapshot, collection, addDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, onSnapshot, collection, addDoc, deleteDoc, doc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const firebaseConfig = {
 	apiKey: "YOUR_API_KEY",
@@ -11,12 +11,12 @@ const firebaseConfig = {
 	appId: "YOUR_APP_ID"
 };
 
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
 // 初始化 Firebase
+const appId = "grand-tour-1c4f8"; // 固定 App ID
 let app, db, auth;
 let userId = null;
 let isAuthReady = false;
+let isFirebaseAvailable = false;
 
 try {
 	app = initializeApp(firebaseConfig);
@@ -423,7 +423,13 @@ const renderTools = () => {
 
 		ui.content().innerHTML = `<h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2 mx-1"><i class="fas fa-tools text-red-500 mr-2"></i> 【${flag} ${currentCountryName} 工具】</h2><div class="space-y-6 mx-1">${emergencyHtml}${rateHtml}${accHtml}${fltHtml}<div class="minimal-shadow rounded-xl p-4 bg-yellow-50 border border-yellow-100"><h3 class="text-lg font-bold text-yellow-800 mb-2 flex items-center"><i class="fas fa-piggy-bank mr-2"></i> ${currentCountryName} 花費</h3><div id="budget-info"><p class="text-sm font-semibold text-gray-600">載入中...</p></div><div id="add-expense-form" class="mt-4 p-3 bg-yellow-100 rounded-lg"><p class="font-semibold text-yellow-800 mb-2">新增支出</p><form onsubmit="window.handleExpenseSubmit(event)"><div class="flex space-x-2 mb-2"><div class="relative w-1/3"><select id="expense-currency" class="w-full p-2 border border-yellow-300 rounded text-sm bg-white"><option value="TWD">TWD</option><option value="USD">USD</option>${currCode && currCode !== 'TWD' && currCode !== 'USD' ? `<option value="${currCode}">${currCode}</option>` : ''}</select></div><input type="number" id="expense-amount" placeholder="金額" required step="0.01" class="w-2/3 p-2 border border-yellow-300 rounded text-sm"></div><input type="text" id="expense-description" placeholder="描述" required class="w-full p-2 mb-3 border border-yellow-300 rounded text-sm"><button type="submit" class="w-full py-2 bg-yellow-600 text-white rounded shadow font-bold text-sm">儲存</button></form></div></div></div>`;
 	}
-	setupBudgetListener();
+	if (isFirebaseAvailable && auth && auth.currentUser) {
+        setupBudgetListener();
+    } else {
+        // 如果未登入，顯示提示
+        const infoDiv = document.getElementById('budget-info');
+        if(infoDiv) infoDiv.innerHTML = '<p class="text-sm text-gray-400">登入中或離線模式 (無法讀取雲端資料)</p>';
+    }
 }
 
 window.openEditorModal = () => {
@@ -683,6 +689,24 @@ navButtons.forEach(button => {
 
 window.handleNavigation = function (location) { const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`; window.open(mapUrl, '_blank'); };
 
+window.deleteExpense = async (id) => {
+    if (!confirm('確定要刪除這筆花費嗎？')) return;
+    if (!db || !auth.currentUser || !appId) return alert('無法操作');
+    try {
+        // 使用 deleteDoc 和 doc 刪除指定 ID 的文件
+        await deleteDoc(doc(db, `artifacts/${appId}/users/${auth.currentUser.uid}/budget_entries`, id));
+    } catch (e) {
+        console.error("刪除失敗", e);
+        alert("刪除失敗: " + e.message);
+    }
+};
+
+function getBudgetCollectionRef() { 
+    // 嚴格檢查：必須有 db 實例，且 auth.currentUser 存在 (代表已登入)
+    if (!db || !auth.currentUser || !appId) return null; 
+    return collection(db, `artifacts/${appId}/users/${auth.currentUser.uid}/budget_entries`); 
+}
+
 function setupBudgetListener() {
 	// 1. 檢查 Auth 狀態
 	const user = auth.currentUser;
@@ -721,35 +745,33 @@ function setupBudgetListener() {
 }
 
 function updateBudgetUI(entries) {
-	const infoDiv = document.getElementById('budget-info');
-	if (!infoDiv) return;
-	if (entries.length === 0) { infoDiv.innerHTML = '<p class="text-sm text-gray-500">目前沒有支出記錄。</p>'; return; }
+    const infoDiv = document.getElementById('budget-info');
+    if (!infoDiv) return;
+    if (entries.length === 0) { infoDiv.innerHTML = '<p class="text-sm text-gray-500">無支出記錄。</p>'; return; }
+    
+    const total = entries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+    
+    let listHtml = entries.slice(0, 5).map(entry => {
+        let originalInfo = (entry.originalCurrency && entry.originalCurrency !== 'TWD') ? `<span class="text-xs text-gray-400 ml-1">(${entry.originalCurrency} ${entry.originalAmount})</span>` : '';
+        let tag = !currentCountryName ? `<span class="mr-2 text-xs bg-gray-200 px-1 rounded">${entry.country}</span>` : '';
+        
+        return `
+        <div class="flex justify-between items-center text-sm py-2 border-b border-yellow-200 group">
+            <div class="flex items-center flex-grow overflow-hidden">
+                 ${tag}
+                 <span class="text-gray-600 truncate mr-1">${entry.description}</span>
+                 ${originalInfo}
+            </div>
+            <div class="flex items-center flex-shrink-0">
+                <span class="font-mono text-red-600 mr-3">TWD ${Math.round(entry.amount)}</span>
+                <button onclick="window.deleteExpense('${entry.id}')" class="text-gray-400 hover:text-red-500 px-1">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
 
-	const total = entries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
-
-	let listHtml = entries.slice(0, 5).map(entry => {
-		let originalInfo = '';
-		if (entry.originalCurrency && entry.originalCurrency !== 'TWD') {
-			originalInfo = `<span class="text-xs text-gray-400 ml-1">(${entry.originalCurrency} ${entry.originalAmount})</span>`;
-		}
-		// 在 Global View 時顯示國家名稱
-		let countryTag = !currentCountryName ? `<span class="mr-2 text-xs bg-gray-200 text-gray-600 px-1 rounded">${entry.country}</span>` : '';
-
-		return `
-		<div class="flex justify-between text-sm py-1 border-b border-yellow-200">
-			<span class="text-gray-600 truncate mr-2 flex items-center">${countryTag}${entry.description} ${originalInfo}</span>
-			<span class="font-mono text-red-600 whitespace-nowrap">TWD ${Math.round(entry.amount)}</span>
-		</div>
-	`}).join('');
-
-	infoDiv.innerHTML = `
-		<div class="mb-3 text-center p-2 bg-yellow-100 rounded-lg">
-			<p class="text-sm font-bold text-yellow-800">總支出:</p>
-			<p class="text-base font-bold text-yellow-900">TWD ${Math.round(total)}</p>
-		</div>
-		<p class="text-sm font-semibold text-gray-700 mb-1">最新支出:</p>
-		<div class="space-y-1">${listHtml}</div>
-	`;
+    infoDiv.innerHTML = `<div class="mb-3 text-center p-2 bg-yellow-100 rounded-lg"><p class="text-sm font-bold text-yellow-800">總支出:</p><p class="text-base font-bold text-yellow-900">TWD ${Math.round(total)}</p></div><p class="text-sm font-semibold text-gray-700 mb-1">最新支出:</p><div class="space-y-1">${listHtml}</div>`;
 }
 
 // --- Window Functions ---
@@ -766,26 +788,30 @@ window.closeGuideModal = () => {
 	setTimeout(() => { document.getElementById('guide-backdrop').classList.add('hidden'); }, 300);
 };
 window.handleExpenseSubmit = async (e) => {
-	e.preventDefault();
-	if (!db || !userId) return alert('資料庫未連線');
-	const amtIn = document.getElementById('expense-amount');
-	const descIn = document.getElementById('expense-description');
-	const currIn = document.getElementById('expense-currency');
-	const rawAmt = parseFloat(amtIn.value);
-	const desc = descIn.value.trim();
-	const curr = currIn.value;
-
-	if (isNaN(rawAmt) || rawAmt <= 0 || desc === "") return;
-
-	let amtTWD = rawAmt;
-	if (curr !== 'TWD') { const rate = exchangeRates[curr] || 1; amtTWD = rawAmt * rate; }
-
-	try {
-		await addDoc(collection(db, `artifacts/${appId}/users/${userId}/budget_entries`), {
-			description: desc, amount: amtTWD, originalAmount: rawAmt, originalCurrency: curr, timestamp: serverTimestamp(), country: currentCountryName || 'Global'
-		});
-		amtIn.value = ''; descIn.value = '';
-	} catch (err) { console.error("新增失敗", err); alert('新增失敗'); }
+    e.preventDefault();
+    // 使用 auth.currentUser 確保是登入狀態
+    const user = auth.currentUser;
+    if (!db || !user) return alert('資料庫未連線或未登入');
+    
+    const amtIn = document.getElementById('expense-amount');
+    const descIn = document.getElementById('expense-description');
+    const currIn = document.getElementById('expense-currency');
+    const rawAmt = parseFloat(amtIn.value);
+    const desc = descIn.value.trim();
+    const curr = currIn.value;
+    
+    if (isNaN(rawAmt) || rawAmt <= 0 || desc === "") return;
+    
+    let amtTWD = rawAmt;
+    if (curr !== 'TWD') { const rate = exchangeRates[curr] || 1; amtTWD = rawAmt * rate; }
+    
+    try {
+        // 直接使用 uid
+        await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/budget_entries`), {
+            description: desc, amount: amtTWD, originalAmount: rawAmt, originalCurrency: curr, timestamp: serverTimestamp(), country: currentCountryName || 'Global'
+        });
+        amtIn.value = ''; descIn.value = '';
+    } catch (err) { console.error("新增失敗", err); alert('新增失敗: ' + err.message); }
 };
 window.handleFileUpload = (e) => {
 	const file = e.target.files[0]; if (!file) return;
@@ -806,17 +832,21 @@ window.resetItinerary = () => { if (confirm('清除自訂行程?')) { localStora
 
 // --- 啟動 ---
 async function init() {
-	await loadItineraryData();
-	if (auth) {
-		onAuthStateChanged(auth, (u) => {
-			isAuthReady = true; userId = u ? u.uid : null;
-			if (!userId) signInAnonymously(auth).catch(console.error);
-			if (currentView.name === 'home') renderCountry(countries[0]);
-		});
-	} else {
-		renderCountry(countries[0]); // 離線模式渲染
-	}
-	fetchRealTimeRates();
-}
+    await loadItineraryData(); 
+    if(auth && isFirebaseAvailable) {
+        onAuthStateChanged(auth, (u) => {
+            isAuthReady = true; userId = u ? u.uid : null;
+            
+            // 如果 Auth Ready，可以開始監聽 DB (如果當前是在 Tools 頁面)
+            if (currentView.name === 'tools') setupBudgetListener();
 
+            if(!userId) signInAnonymously(auth).catch(console.error);
+            if(currentView.name === 'home') renderCountry(countries[0]);
+        });
+    } else {
+        isAuthReady = true;
+        renderCountry(countries[0]); 
+    }
+    fetchRealTimeRates();
+}
 document.addEventListener('DOMContentLoaded', init);
