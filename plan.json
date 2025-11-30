@@ -1,0 +1,261 @@
+{
+    "馬來西亞": {
+        "flag": "🇲🇾",
+        "tools": {
+            "emergency": "999 (警察/救護車)",
+            "currency": "MYR (馬來西亞令吉)",
+            "currencyCode": "MYR",
+            "timezone": "UTC+8"
+        },
+        "embassy": {
+            "name": "駐馬來西亞臺北經濟文化辦事處",
+            "address": "Level 7, Menara Yayasan Tun Razak, 200 Jalan Bukit Bintang, Kuala Lumpur",
+            "phone": "+60-3-2161-4439"
+        },
+        "accommodation": [
+            {
+                "name": "Rucksack Inn Premium",
+                "address": "107, Jalan Banda Kaba, Banda Hilir, 75000 Melaka, 馬來西亞",
+                "checkIn": "15:00",
+                "checkOut": "12:00",
+                "note": "Day 1",
+				"gmap": "https://maps.app.goo.gl/twMn54zvp6xMNHdq7"
+            },
+            {
+                "name": "波德斯背包客旅館和咖啡館",
+                "address": "G-6, 30, Jalan Thambipillay, Brickfields, 50470 Kuala Lumpur, Federal Territory of Kuala Lumpur, 馬來西亞",
+                "checkIn": "15:00",
+                "checkOut": "11:00",
+                "note": "Day 2-3",
+				"gmap": "https://maps.app.goo.gl/pY4cyvXBQ3KMUJ1H6"
+            }
+        ],
+        "flight": [
+            {
+                "code": "D7379",
+                "route": "TPE - KUL",
+                "time": "00:20 - 05:10",
+                "note": "A330-300"
+            }
+        ],
+        "Day 1": [
+            {
+                "type": "Attraction",
+                "name": "吉隆坡雙子塔",
+                "location": "Kuala Lumpur",
+                "time": "10:00 - 12:00",
+                "guide": "必拍的城市地標！\n\n攻略:\n1. 建議提前在Klook預約觀景台門票，現場排隊人潮眾多。\n2. 最佳拍攝點在戶外公園噴水池前，可以使用廣角鏡頭。\n3. 晚上有音樂噴泉表演，值得二訪。"
+            },
+            {
+                "type": "Restaurant",
+                "name": "新峰肉骨茶",
+                "location": "Kuala Lumpur",
+                "time": "12:30 - 14:00",
+                "guide": "必吃美食: 濃郁湯頭的招牌肉骨茶。"
+            },
+            {
+                "type": "Attraction",
+                "name": "茨廠街",
+                "location": "Kuala Lumpur",
+                "time": "16:00 - 18:00",
+                "guide": "攻略: 傍晚時分更熱鬧。必買伴手禮: 傳統娘惹糕點。"
+            }
+        ],
+        "Day 2": [
+            {
+                "type": "Attraction",
+                "name": "黑風洞",
+                "location": "Gombak",
+                "time": "09:00 - 11:30",
+                "guide": "重要預約代號: 導覽預約碼 KL789。提醒：爬階梯時請小心猴子。"
+            }
+        ]
+    },
+    "泰國": {
+        "flag": "🇹🇭",
+        "tools": {
+            "emergency": "191 (警察)",
+            "currency": "THB (泰銖)",
+            "currencyCode": "THB",
+            "timezone": "UTC+7"
+        },
+        "embassy": {
+            "name": "駐泰國臺北經濟文化辦事處",
+            "address": "40/64 Vibhavadi-Rangsit 66, Laksi, Bangkok",
+            "phone": "+66-2-119-3555"
+        },
+        "accommodation": {
+            "name": "Bangkok Riverview",
+            "address": "Charoen Krung Rd",
+            "checkIn": "14:00",
+            "checkOut": "12:00",
+            "note": "鄰近碼頭"
+        },
+        "flight": {
+            "code": "AK881",
+            "route": "KUL - DMK",
+            "time": "09:30 / 10:45",
+            "note": "廉價航空請注意行李"
+        },
+        "Day 1": [
+            {
+                "type": "Attraction",
+                "name": "大皇宮與玉佛寺",
+                "location": "Bangkok",
+                "time": "10:00 - 13:00",
+                "guide": "必拍: 建築金碧輝煌。提醒：請穿著正式服裝。"
+            },
+            {
+                "type": "Restaurant",
+                "name": "藍象餐廳",
+                "location": "Bangkok",
+                "time": "13:30 - 15:00",
+                "guide": "必吃美食: 皇家咖哩。重要預約代號: BE20250915。"
+            }
+        ]
+    },
+    "尼泊爾": {
+        "flag": "🇳🇵",
+        "tools": {
+            "emergency": "100",
+            "currency": "NPR",
+            "currencyCode": "NPR",
+            "timezone": "UTC+5:45"
+        },
+        "embassy": {
+            "name": "駐印度臺北經濟文化中心 (兼轄)",
+            "address": "34, Paschimi Marg, Vasant Vihar, New Delhi, India",
+            "phone": "+91-11-4607-7777",
+            "note": "尼泊爾無直屬外館"
+        }
+    },
+    "印度": {
+        "flag": "🇮🇳",
+        "tools": {
+            "emergency": "100",
+            "currency": "INR",
+            "currencyCode": "INR",
+            "timezone": "UTC+5:30"
+        },
+        "embassy": {
+            "name": "駐印度臺北經濟文化中心",
+            "address": "34, Paschimi Marg, Vasant Vihar, New Delhi",
+            "phone": "+91-11-4607-7777"
+        }
+    },
+    "杜拜": {
+        "flag": "🇦🇪",
+        "tools": {
+            "emergency": "999",
+            "currency": "AED",
+            "currencyCode": "AED",
+            "timezone": "UTC+4"
+        },
+        "embassy": {
+            "name": "駐杜拜臺北商務辦事處",
+            "address": "M Floor, Sharaf Travel Building, 153 Khalid bin Al Waleed Road, Bur Dubai",
+            "phone": "+971-4-397-7888"
+        }
+    },
+    "肯亞": {
+        "flag": "🇰🇪",
+        "tools": {
+            "emergency": "999",
+            "currency": "KES",
+            "currencyCode": "KES",
+            "timezone": "UTC+3"
+        },
+        "embassy": {
+            "name": "駐南非共和國台北聯絡代表處 (兼轄)",
+            "address": "1147 Francis Baard Street, Hatfield, Pretoria, South Africa",
+            "phone": "+27-12-430-6071",
+            "note": "肯亞無直屬外館"
+        }
+    },
+    "埃及": {
+        "flag": "🇪🇬",
+        "tools": {
+            "emergency": "122",
+            "currency": "EGP",
+            "currencyCode": "EGP",
+            "timezone": "UTC+2"
+        },
+        "embassy": {
+            "name": "駐約旦臺北經濟文化辦事處 (兼轄)",
+            "address": "No. 16, Iritria Street, Um Uthaina, Amman, Jordan",
+            "phone": "+962-6-593-1021",
+            "note": "埃及事務由約旦兼轄"
+        }
+    },
+    "亞美尼亞": {
+        "flag": "🇦🇲",
+        "tools": {
+            "emergency": "911",
+            "currency": "AMD",
+            "currencyCode": "AMD",
+            "timezone": "UTC+4"
+        },
+        "embassy": {
+            "name": "駐俄羅斯代表處 (兼轄)",
+            "address": "24/2 Tverskaya St., Moscow, Russia",
+            "phone": "+7-495-956-3786",
+            "note": "由駐俄羅斯代表處兼轄"
+        }
+    },
+    "希臘": {
+        "flag": "🇬🇷",
+        "tools": {
+            "emergency": "112",
+            "currency": "EUR",
+            "currencyCode": "EUR",
+            "timezone": "UTC+3"
+        },
+        "embassy": {
+            "name": "駐希臘臺北代表處",
+            "address": "57, Marathonodromon Ave., 154 52 Psychico, Athens",
+            "phone": "+30-210-677-6750"
+        }
+    },
+    "義大利": {
+        "flag": "🇮🇹",
+        "tools": {
+            "emergency": "112",
+            "currency": "EUR",
+            "currencyCode": "EUR",
+            "timezone": "UTC+2"
+        },
+        "embassy": {
+            "name": "駐義大利臺北代表處",
+            "address": "Viale Liegi 17, 00198 Roma",
+            "phone": "+39-06-9826-2800"
+        }
+    },
+    "巴黎": {
+        "flag": "🇫🇷",
+        "tools": {
+            "emergency": "112",
+            "currency": "EUR",
+            "currencyCode": "EUR",
+            "timezone": "UTC+2"
+        },
+        "embassy": {
+            "name": "駐法國臺北代表處",
+            "address": "78, rue de l\"Université, 75007 Paris",
+            "phone": "+33-1-4439-8830"
+        }
+    },
+    "朝聖之路": {
+        "flag": "🇪🇸",
+        "tools": {
+            "emergency": "112",
+            "currency": "EUR",
+            "currencyCode": "EUR",
+            "timezone": "UTC+2"
+        },
+        "embassy": {
+            "name": "駐西班牙臺北經濟文化辦事處",
+            "address": "C/ Rosario Pino 14-16, Piso 18 Dcha., 28020 Madrid",
+            "phone": "+34-91-571-4678"
+        }
+    }
+}

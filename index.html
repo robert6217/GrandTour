@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="author" content="Robbb" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>一路向西 直到世界盡頭</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+	<link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+	<style>
+		/* 設定全域字體為思源宋體，並啟用平滑字體渲染 */
+		body {
+			font-family: 'Noto Serif TC', serif;
+			-webkit-font-smoothing: antialiased;
+			-moz-osx-font-smoothing: grayscale;
+			background-color: #f7f7f7;
+			/* 淺米白色背景 */
+		}
+
+		/* 定義極簡風格的卡片陰影 */
+		.minimal-shadow {
+			box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+		}
+
+		/* 響應式容器：模擬手機螢幕寬度，並居中 */
+		#app-container {
+			max-width: 450px;
+			/* 模擬手機寬度 */
+			height: 100vh;
+			margin: 0 auto;
+			border-left: 1px solid #eee;
+			border-right: 1px solid #eee;
+			position: relative;
+			overflow: hidden;
+			/* 確保內容不超出 */
+		}
+
+		/* 隱藏原生滾動條並使用偽元素實現極簡風格的滾動條 */
+		.scrollable-content::-webkit-scrollbar {
+			display: none;
+		}
+
+		.scrollable-content {
+			-ms-overflow-style: none;
+			/* IE and Edge */
+			scrollbar-width: none;
+			/* Firefox */
+		}
+
+		/* 隱藏橫向捲軸但保留功能 */
+		.hide-scrollbar::-webkit-scrollbar {
+			display: none;
+		}
+
+		.hide-scrollbar {
+			-ms-overflow-style: none;
+			scrollbar-width: none;
+		}
+
+		/* 標籤樣式 */
+		.tag-style {
+			padding: 2px 8px;
+			border-radius: 9999px;
+			font-weight: 600;
+			font-size: 0.75rem;
+			/* text-xs */
+		}
+
+		/* 導航按鈕樣式優化 */
+		.nav-pill-active {
+			background-color: #ef4444;
+			color: white;
+			border-color: #ef4444;
+		}
+
+		.nav-pill-inactive {
+			background-color: white;
+			color: #4b5563;
+			border-color: #e5e7eb;
+		}
+
+		/* Bottom Sheet 動畫與樣式 */
+		.bottom-sheet-backdrop {
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.3s ease;
+		}
+
+		.bottom-sheet-backdrop.active {
+			opacity: 1;
+			pointer-events: auto;
+		}
+
+		.bottom-sheet-content {
+			transform: translateY(100%);
+			transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+		}
+
+		.bottom-sheet-content.active {
+			transform: translateY(0);
+		}
+
+		/* Select 下拉選單樣式 */
+		.custom-select {
+			appearance: none;
+			background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+			background-position: right 0.5rem center;
+			background-repeat: no-repeat;
+			background-size: 1.5em 1.5em;
+		}
+
+		/* 時間軸樣式 */
+		.timeline-line {
+			position: absolute;
+			left: 1rem;
+			top: 0;
+			bottom: 0;
+			width: 2px;
+			background-color: #e5e7eb;
+			z-index: 0;
+		}
+	</style>
+  <script type="module" crossorigin src="/assets/index-Dacka9wy.js"></script>
+</head>
+
+<body class="p-0 m-0">
+	<div id="app-container" class="bg-white">
+		<!-- 頂部標題與返回按鈕 -->
+		<header class="sticky top-0 z-20 bg-white border-b border-gray-100 minimal-shadow p-4 flex items-center">
+			<button id="back-button" class="text-gray-500 hover:text-gray-700 hidden" onclick="goBack()">
+				<i class="fas fa-arrow-left text-xl"></i>
+			</button>
+			<h1 id="header-title"
+				class="flex-grow text-center text-xl font-bold text-gray-800 transition-all duration-300 ease-in-out">
+				一路向西 直到世界盡頭
+			</h1>
+		</header>
+
+		<!-- Main Content Area -->
+		<main id="content-area" class="scrollable-content p-4 pb-24 overflow-y-auto"
+			style="height: calc(100vh - 70px);">
+			<!-- Content will be dynamically loaded by JavaScript -->
+		</main>
+
+		<!-- Bottom Navigation Bar (Fixed at the Bottom) -->
+		<nav class="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-100 minimal-shadow mx-auto"
+			style="max-width: 450px;">
+			<div class="flex justify-around p-2">
+				<button class="nav-button flex flex-col items-center p-2 text-red-500 w-1/3" data-view="home">
+					<i class="fas fa-globe text-xl"></i>
+					<span class="text-xs mt-1">國家</span>
+				</button>
+				<button class="nav-button flex flex-col items-center p-2 text-gray-400 w-1/3" data-view="calendar">
+					<i class="far fa-calendar-alt text-xl"></i>
+					<span class="text-xs mt-1">行事曆</span>
+				</button>
+				<button class="nav-button flex flex-col items-center p-2 text-gray-400 w-1/3" data-view="tools">
+					<i class="fas fa-toolbox text-xl"></i>
+					<span class="text-xs mt-1">工具箱</span>
+				</button>
+			</div>
+		</nav>
+
+		<!-- Bottom Sheet Structure -->
+		<div id="guide-backdrop"
+			class="fixed inset-0 bg-black bg-opacity-50 z-40 bottom-sheet-backdrop flex items-end justify-center"
+			onclick="closeGuideModal()">
+		</div>
+		<div id="guide-sheet"
+			class="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl mx-auto bottom-sheet-content"
+			style="max-width: 450px; max-height: 80vh; display: flex; flex-direction: column;">
+			<div class="p-4 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-2xl">
+				<h3 id="sheet-title" class="text-lg font-bold text-gray-800"></h3>
+				<button onclick="closeGuideModal()" class="text-gray-400 hover:text-gray-600">
+					<i class="fas fa-times text-xl"></i>
+				</button>
+			</div>
+			<div id="sheet-body" class="p-5 overflow-y-auto bg-gray-50 flex-grow">
+				<!-- Guide Details -->
+			</div>
+		</div>
+		<!-- 行程編輯器 Modal (新增) -->
+        <div id="editor-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-50 modal-backdrop hidden flex items-center justify-center">
+            <div id="editor-modal" class="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl flex flex-col overflow-hidden shadow-2xl transform transition-all">
+                <!-- Editor Header -->
+                <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-indigo-50">
+                    <h3 class="text-lg font-bold text-indigo-800"><i class="fas fa-edit mr-2"></i>行程編輯器</h3>
+                    <button onclick="window.closeEditorModal()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                
+                <!-- Editor Body -->
+                <div class="p-4 overflow-y-auto flex-grow bg-gray-50" id="editor-body">
+                    
+                    <!-- 1. 選擇國家 -->
+                    <div class="editor-section">
+                        <label class="editor-label">選擇編輯國家 / 或輸入新國家</label>
+                        <select id="edit-select-country" class="editor-input mb-2 custom-select" onchange="window.loadCountryToEditor(this.value)">
+                            <option value="">-- 新增國家 --</option>
+                        </select>
+                        <div class="grid grid-cols-4 gap-2">
+                            <div class="col-span-3">
+                                <input type="text" id="edit-country-name" class="editor-input" placeholder="國家名稱 (Key)" spellcheck="false">
+                            </div>
+                            <div>
+                                <input type="text" id="edit-country-flag" class="editor-input text-center" placeholder="Emoji" spellcheck="false">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. 基本工具 -->
+                    <div class="editor-section">
+                        <h4 class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">🛠️ 當地資訊</h4>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div><label class="editor-label">緊急電話</label><input id="edit-emergency" class="editor-input" placeholder="110"></div>
+                            <div><label class="editor-label">時區</label><input id="edit-timezone" class="editor-input" placeholder="UTC+9"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="editor-label">貨幣代碼</label><input id="edit-curr-code" class="editor-input" placeholder="JPY"></div>
+                            <div><label class="editor-label">貨幣名稱</label><input id="edit-curr-name" class="editor-input" placeholder="日圓"></div>
+                        </div>
+                    </div>
+
+                    <!-- 3. 外館 -->
+                    <div class="editor-section">
+                        <h4 class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">🏛️ 外館資訊</h4>
+                        <input id="edit-emb-name" class="editor-input mb-2" placeholder="外館名稱">
+                        <input id="edit-emb-addr" class="editor-input mb-2" placeholder="地址">
+                        <input id="edit-emb-phone" class="editor-input" placeholder="電話">
+                    </div>
+
+                    <!-- 4. 住宿 (動態) -->
+                    <div class="editor-section">
+                        <div class="flex justify-between items-center mb-2 border-b pb-1">
+                            <h4 class="text-sm font-bold text-gray-700">🛏️ 住宿</h4>
+                            <button onclick="window.addEditorAccommodation()" class="text-xs text-indigo-600 font-bold">+ 新增</button>
+                        </div>
+                        <div id="editor-acc-container" class="space-y-2"></div>
+                    </div>
+
+                    <!-- 5. 航班 (動態) -->
+                    <div class="editor-section">
+                        <div class="flex justify-between items-center mb-2 border-b pb-1">
+                            <h4 class="text-sm font-bold text-gray-700">✈️ 航班</h4>
+                            <button onclick="window.addEditorFlight()" class="text-xs text-indigo-600 font-bold">+ 新增</button>
+                        </div>
+                        <div id="editor-flight-container" class="space-y-2"></div>
+                    </div>
+
+                    <!-- 6. 每日行程 (動態) -->
+                    <div id="editor-days-container"></div>
+                    <button onclick="window.addEditorDay()" class="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:bg-gray-100 font-bold mb-4">
+                        <i class="fas fa-plus mr-2"></i> 新增一天行程
+                    </button>
+
+                </div>
+
+                <!-- Editor Footer -->
+                <div class="p-4 border-t border-gray-100 bg-white flex gap-3">
+                    <button onclick="window.downloadEditorJSON()" class="flex-1 py-3 bg-green-600 text-white rounded-lg font-bold shadow hover:bg-green-700 flex items-center justify-center">
+                        <i class="fas fa-download mr-2"></i> 下載 JSON
+                    </button>
+                </div>
+            </div>
+        </div>
+	</div>
+</body>
+
+</html>
