@@ -351,204 +351,307 @@ function renderDayItinerary(data) {
 	contentArea.innerHTML = `<div class="mb-4 flex items-center text-sm text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-100"><span class="mr-2 text-2xl">${itineraryData[country].flag}</span><div class="flex flex-col"><span class="font-bold text-gray-800">${country}</span><span class="text-xs">${dateStr} 行程詳情</span></div></div>${dailyItinerary.map(renderItineraryCard).join('')}`;
 }
 
+const ui = {
+	header: () => document.getElementById('header-title'),
+	back: () => document.getElementById('back-button'),
+	content: () => document.getElementById('content-area'),
+	navs: () => document.querySelectorAll('.nav-button')
+};
+const updateUI = (view, title, back) => {
+	ui.header().textContent = title;
+	ui.back().classList.toggle('hidden', !back);
+	ui.navs().forEach(btn => {
+		const target = btn.getAttribute('data-view');
+		const active = view === target || (view !== 'tools' && view !== 'calendar' && target === 'home');
+		btn.className = `nav-button flex flex-col items-center p-2 w-1/3 ${active ? 'text-red-500' : 'text-gray-400'}`;
+	});
+};
+
 // --- 工具箱渲染邏輯 ---
-function renderTools() {
-	updateUIForView('tools', '旅途工具箱', true);
+const renderTools = () => {
+	updateUI('tools', '旅途工具箱', true);
+	const importSection = `<div class="mb-6 bg-white rounded-xl p-4 border border-gray-200 minimal-shadow mx-1"><h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center"><i class="fas fa-file-import mr-2 text-blue-500"></i>資料管理</h3><button onclick="window.openEditorModal()" class="w-full mb-3 py-2.5 bg-indigo-600 text-white rounded-lg font-bold shadow-sm hover:bg-indigo-700 flex items-center justify-center">
+                <i class="fas fa-edit mr-2"></i> 開啟行程編輯器 (新增/修改/匯出)
+            </button><div class="flex gap-2"><label class="flex-1 cursor-pointer py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-semibold text-center hover:bg-blue-100 transition border border-blue-100">匯入 JSON<input type="file" class="hidden" accept=".json" onchange="window.handleFileUpload(event)"></label><button onclick="window.resetItinerary()" class="px-3 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm font-semibold hover:bg-gray-200 transition"><i class="fas fa-undo"></i></button></div></div>`;
 
 	if (!currentCountryName) {
-		// ... 全球通用工具代碼 (保持不變) ...
-		let allAccommodationsHtml = '';
-		let allFlightsHtml = '';
-
+		// Global View
+		let allAccommodationsHtml = '', allFlightsHtml = '';
 		countries.forEach(c => {
-			const acc = itineraryData[c].accommodation;
-			const flt = itineraryData[c].flight;
-			const flag = itineraryData[c].flag;
+			// [更新] 處理陣列或單一物件
+			const accs = Array.isArray(itineraryData[c].accommodation) ? itineraryData[c].accommodation : (itineraryData[c].accommodation ? [itineraryData[c].accommodation] : []);
+			const flts = Array.isArray(itineraryData[c].flight) ? itineraryData[c].flight : (itineraryData[c].flight ? [itineraryData[c].flight] : []);
+			const flag = itineraryData[c]?.flag || '';
 
-			if (acc) {
-				allAccommodationsHtml += `
-					<div class="bg-white border-l-4 border-green-500 p-3 mb-2 rounded shadow-sm">
-						<div class="flex justify-between items-center mb-1">
-							<h4 class="font-bold text-sm text-gray-800"><span class="mr-2">${flag}</span>${acc.name}</h4>
-							<span class="text-xs text-gray-400">${c}</span>
-						</div>
-						<p class="text-xs text-gray-600 mb-1"><i class="fas fa-map-marker-alt mr-1"></i>${acc.address}</p>
-						<div class="flex space-x-2 text-xs text-gray-500">
-							<span>入住: ${acc.checkIn}</span><span>退房: ${acc.checkOut}</span>
-						</div>
-					</div>`;
-			}
-
-			if (flt) {
-				allFlightsHtml += `
-					<div class="bg-white border-l-4 border-blue-500 p-3 mb-2 rounded shadow-sm">
-						<div class="flex justify-between items-center mb-1">
-							<h4 class="font-bold text-sm text-gray-800"><span class="mr-2">${flag}</span>${flt.code}</h4>
-							<span class="text-xs text-gray-400">${c}</span>
-						</div>
-						<p class="text-xs text-gray-600 mb-1"><i class="fas fa-plane mr-1"></i>${flt.route}</p>
-						<p class="text-xs text-gray-500">${flt.time} <span class="ml-2 text-gray-400">(${flt.note})</span></p>
-					</div>`;
-			}
+			accs.forEach(acc => {
+				allAccommodationsHtml += `<div class="bg-white border-l-4 border-green-500 p-3 mb-2 rounded shadow-sm"><div class="flex justify-between items-center mb-1"><h4 class="font-bold text-sm text-gray-800"><span class="mr-2">${flag}</span>${acc.name}</h4><span class="text-xs text-gray-400">${c}</span></div><p class="text-xs text-gray-600 mb-1"><i class="fas fa-map-marker-alt mr-1"></i>${acc.address}</p></div>`;
+			});
+			flts.forEach(flt => {
+				allFlightsHtml += `<div class="bg-white border-l-4 border-blue-500 p-3 mb-2 rounded shadow-sm"><div class="flex justify-between items-center mb-1"><h4 class="font-bold text-sm text-gray-800"><span class="mr-2">${flag}</span>${flt.code}</h4><span class="text-xs text-gray-400">${c}</span></div><p class="text-xs text-gray-600 mb-1"><i class="fas fa-plane mr-1"></i>${flt.route}</p></div>`;
+			});
 		});
 
-		if (!allAccommodationsHtml) allAccommodationsHtml = '<p class="text-xs text-gray-400 p-2">尚無住宿資料</p>';
-		if (!allFlightsHtml) allFlightsHtml = '<p class="text-xs text-gray-400 p-2">尚無航班資料</p>';
-
-		contentArea.innerHTML = `
-			<h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2"><i class="fas fa-globe-asia text-red-500 mr-2"></i> 全球通用資訊</h2>
-			
-			<div class="space-y-6">
-				<div class="minimal-shadow rounded-xl p-4 bg-yellow-50 border border-yellow-100">
-					<h3 class="text-lg font-bold text-yellow-800 mb-2 flex items-center"><i class="fas fa-piggy-bank mr-2"></i> 旅程總花費 (所有國家)</h3>
-					<div id="budget-info"><p class="text-sm font-semibold text-gray-600">正在統計所有支出...</p></div>
-				</div>
-				<div class="minimal-shadow rounded-xl p-4 bg-green-50 border border-green-100">
-					<h3 class="text-lg font-bold text-green-800 mb-3 flex items-center"><i class="fas fa-bed mr-2"></i> 住宿總覽</h3>
-					<div class="max-h-60 overflow-y-auto pr-1">${allAccommodationsHtml}</div>
-				</div>
-				<div class="minimal-shadow rounded-xl p-4 bg-blue-50 border border-blue-100">
-					<h3 class="text-lg font-bold text-blue-800 mb-3 flex items-center"><i class="fas fa-plane-departure mr-2"></i> 航班總覽</h3>
-					<div class="max-h-60 overflow-y-auto pr-1">${allFlightsHtml}</div>
-				</div>
-			</div>
-		`;
-
+		ui.content().innerHTML = `${importSection}<h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2 mx-1"><i class="fas fa-globe-asia text-red-500 mr-2"></i> 全球通用資訊</h2><div class="space-y-6 mx-1"><div class="minimal-shadow rounded-xl p-4 bg-yellow-50 border border-yellow-100"><h3 class="text-lg font-bold text-yellow-800 mb-2 flex items-center"><i class="fas fa-piggy-bank mr-2"></i> 總花費</h3><div id="budget-info"><p class="text-sm font-semibold text-gray-600">載入中...</p></div></div><div class="minimal-shadow rounded-xl p-4 bg-green-50 border border-green-100"><h3 class="text-lg font-bold text-green-800 mb-3 flex items-center"><i class="fas fa-bed mr-2"></i> 住宿總覽</h3><div class="max-h-60 overflow-y-auto pr-1">${allAccommodationsHtml || '<p class="text-xs text-gray-400">無資料</p>'}</div></div><div class="minimal-shadow rounded-xl p-4 bg-blue-50 border border-blue-100"><h3 class="text-lg font-bold text-blue-800 mb-3 flex items-center"><i class="fas fa-plane-departure mr-2"></i> 航班總覽</h3><div class="max-h-60 overflow-y-auto pr-1">${allFlightsHtml || '<p class="text-xs text-gray-400">無資料</p>'}</div></div></div>`;
 	} else {
-		// === 單一國家工具頁面 ===
-		const countryToolData = itineraryData[currentCountryName].tools;
-		const accommodation = itineraryData[currentCountryName].accommodation;
-		const flight = itineraryData[currentCountryName].flight;
+		// Country View
+		const tools = itineraryData[currentCountryName].tools;
 		const embassy = itineraryData[currentCountryName].embassy;
-		const countryFlag = itineraryData[currentCountryName].flag;
-		const localCurrencyCode = countryToolData ? countryToolData.currencyCode : '';
+		const flag = itineraryData[currentCountryName].flag;
+		const currCode = tools ? tools.currencyCode : '';
+		const rateStatus = isRateRealTime ? '<span class="text-xs text-green-600 bg-green-50 px-2 rounded ml-2">即時</span>' : '<span class="text-xs text-gray-500 bg-gray-100 px-2 rounded ml-2">預設</span>';
 
-		const rateStatusHtml = isRateRealTime
-			? '<span class="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded ml-2"><i class="fas fa-check-circle mr-1"></i>即時匯率</span>'
-			: '<span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded ml-2">預設匯率</span>';
+		// [更新] 處理陣列
+		const accs = Array.isArray(itineraryData[currentCountryName].accommodation) ? itineraryData[currentCountryName].accommodation : (itineraryData[currentCountryName].accommodation ? [itineraryData[currentCountryName].accommodation] : []);
+		const flts = Array.isArray(itineraryData[currentCountryName].flight) ? itineraryData[currentCountryName].flight : (itineraryData[currentCountryName].flight ? [itineraryData[currentCountryName].flight] : []);
 
-		// 1. 緊急連絡 & 大使館
 		let emergencyHtml = '';
-		if (countryToolData || embassy) {
-			let embassyDetails = '';
-			if (embassy) {
-				const note = embassy.note ? `<span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full ml-2">${embassy.note}</span>` : '';
-				embassyDetails = `
-					<div class="mt-3 pt-3 border-t border-red-100">
-						<p class="font-bold text-sm text-red-900 mb-1">
-							<i class="fas fa-landmark mr-1"></i> 中華民國駐外辦事處
-							${note}
-						</p>
-						<p class="font-bold text-base text-gray-800">${embassy.name}</p>
-						<p class="text-xs text-gray-600 mt-1 mb-2"><i class="fas fa-map-marker-alt mr-1"></i>${embassy.address}</p>
-						<p class="text-xs text-gray-600"><i class="fas fa-phone mr-1"></i>${embassy.phone}</p>
-						<button onclick="handleNavigation('${embassy.address}, ${currentCountryName}')" class="mt-2 w-full py-1.5 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700">導航至辦事處</button>
-					</div>
-				`;
-			}
-
-			emergencyHtml = `
-				<div class="minimal-shadow rounded-xl p-4 bg-red-50 border border-red-100">
-					<h3 class="text-lg font-bold text-red-800 mb-2 flex items-center"><i class="fas fa-ambulance mr-2"></i> 緊急救援與外館</h3>
-					<div class="space-y-1 text-sm text-gray-700">
-						<p><strong>當地報警/急救:</strong> <span class="font-bold text-red-600 text-lg">${countryToolData.emergency}</span></p>
-						<p><strong>外交部緊急聯絡:</strong> +886-800-085-095</p>
-					</div>
-					${embassyDetails}
-				</div>
-			`;
+		if (tools || embassy) {
+			let embHtml = embassy ? `<div class="mt-3 pt-3 border-t border-red-100"><p class="font-bold text-sm text-red-900 mb-1">🇹🇼 外館</p><p class="font-bold text-base text-gray-800">${embassy.name}</p><p class="text-xs text-gray-600 mt-1">${embassy.address}</p><button onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(embassy.address)}', '_blank')" class="mt-2 w-full py-1.5 bg-red-600 text-white rounded text-xs font-bold">導航</button></div>` : '';
+			emergencyHtml = `<div class="minimal-shadow rounded-xl p-4 bg-red-50 border border-red-100"><h3 class="text-lg font-bold text-red-800 mb-2 flex items-center"><i class="fas fa-ambulance mr-2"></i> 緊急救援</h3><div class="space-y-1 text-sm text-gray-700"><p><strong>報警:</strong> <span class="font-bold text-red-600 text-lg">${tools?.emergency || '112'}</span></p></div>${embHtml}</div>`;
 		}
 
-		// 2. 即時匯率
 		let rateHtml = '';
-		if (localCurrencyCode && localCurrencyCode !== 'TWD') {
-			const rateToTwd = exchangeRates[localCurrencyCode] ? (1 / exchangeRates[localCurrencyCode]) : 0;
-			const rateToLocal = exchangeRates[localCurrencyCode] || 0;
-
-			rateHtml = `
-				<div class="minimal-shadow rounded-xl p-4 bg-white border border-gray-200">
-					<h3 class="text-lg font-bold text-gray-800 mb-2 flex items-center">
-						<i class="fas fa-exchange-alt mr-2 text-blue-500"></i> 即時匯率資訊
-						${rateStatusHtml}
-					</h3>
-					<div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-						<div class="text-center w-1/2 border-r border-gray-200">
-							<p class="text-xs text-gray-500">1 TWD 約等於</p>
-							<p class="text-xl font-bold text-blue-600">${rateToLocal.toFixed(2)} <span class="text-xs text-gray-400">${localCurrencyCode}</span></p>
-						</div>
-						<div class="text-center w-1/2">
-							<p class="text-xs text-gray-500">1 ${localCurrencyCode} 約等於</p>
-							<p class="text-xl font-bold text-blue-600">${rateToTwd.toFixed(2)} <span class="text-xs text-gray-400">TWD</span></p>
-						</div>
-					</div>
-				</div>
-			`;
+		if (currCode && currCode !== 'TWD') {
+			const rTwd = exchangeRates[currCode] ? (1 / exchangeRates[currCode]) : 0;
+			const rLoc = exchangeRates[currCode] || 0;
+			rateHtml = `<div class="minimal-shadow rounded-xl p-4 bg-white border border-gray-200"><h3 class="text-lg font-bold text-gray-800 mb-2 flex items-center"><i class="fas fa-exchange-alt mr-2 text-blue-500"></i> 匯率 ${rateStatus}</h3><div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg"><div class="text-center w-1/2 border-r"><p class="text-xs text-gray-500">1 TWD ≈</p><p class="text-xl font-bold text-blue-600">${rLoc.toFixed(2)} ${currCode}</p></div><div class="text-center w-1/2"><p class="text-xs text-gray-500">1 ${currCode} ≈</p><p class="text-xl font-bold text-blue-600">${rTwd.toFixed(2)} TWD</p></div></div></div>`;
 		}
 
-		// 住宿 & 航班 (保持不變)
-		let accommodationHtml = '';
-		if (accommodation) {
-			accommodationHtml = `
-				<div class="minimal-shadow rounded-xl p-4 bg-green-50 border border-green-100">
-					<h3 class="text-lg font-bold text-green-800 mb-2 flex items-center"><i class="fas fa-bed mr-2"></i> 住宿資訊</h3>
-					<div class="space-y-1 text-sm text-gray-700">
-						<p class="font-bold text-base">${accommodation.name}</p>
-						<p><i class="fas fa-map-marker-alt text-green-600 mr-1"></i> ${accommodation.address}</p>
-						<div class="flex space-x-4 mt-1"><p><strong>入住:</strong> ${accommodation.checkIn}</p><p><strong>退房:</strong> ${accommodation.checkOut}</p></div>
-						<p class="mt-2 text-green-700 bg-green-100 p-2 rounded text-xs">${accommodation.note}</p>
-					</div>
-					<button onclick="handleNavigation('${accommodation.address}, ${currentCountryName}')" class="mt-2 w-full py-1.5 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700">導航至住宿</button>
-				</div>`;
-		}
+		let accHtml = accs.map(acc => `<div class="minimal-shadow rounded-xl p-4 bg-green-50 border border-green-100 mb-2"><h3 class="text-lg font-bold text-green-800 mb-2 flex items-center"><i class="fas fa-bed mr-2"></i> ${acc.name}</h3><p class="text-xs text-gray-700 mb-1">${acc.address}</p><div class="flex gap-2 text-xs text-gray-500 mb-1"><span>In: ${acc.checkIn}</span><span>Out: ${acc.checkOut}</span></div><p class="text-xs text-green-700 bg-green-100 p-1 rounded">${acc.note}</p><button onclick="window.open('${acc.gmap}', '_blank')" class="mt-2 w-full py-1.5 bg-green-600 text-white rounded text-xs font-bold">導航</button></div>`).join('');
 
-		let flightHtml = '';
-		if (flight) {
-			flightHtml = `
-				<div class="minimal-shadow rounded-xl p-4 bg-blue-50 border border-blue-100">
-					<h3 class="text-lg font-bold text-blue-800 mb-2 flex items-center"><i class="fas fa-plane-departure mr-2"></i> 航班資訊</h3>
-					<div class="space-y-1 text-sm text-gray-700">
-						<p><strong>航班:</strong> ${flight.code} (${flight.route})</p>
-						<p><strong>時間:</strong> ${flight.time}</p>
-						<p class="mt-2 text-blue-700 bg-blue-100 p-2 rounded text-xs">${flight.note}</p>
-					</div>
-				</div>`;
-		}
+		let fltHtml = flts.map(flt => `<div class="minimal-shadow rounded-xl p-4 bg-blue-50 border border-blue-100 mb-2"><h3 class="text-lg font-bold text-blue-800 mb-2 flex items-center"><i class="fas fa-plane-departure mr-2"></i> ${flt.code}</h3><p class="text-xs text-gray-700 mb-1">${flt.route}</p><p class="text-xs text-gray-500">${flt.time}</p><p class="text-xs text-blue-600 mt-1">${flt.note}</p></div>`).join('');
 
-		contentArea.innerHTML = `
-			<h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2"><i class="fas fa-tools text-red-500 mr-2"></i> 【${countryFlag} ${currentCountryName} 專屬工具】</h2>
-			<div class="space-y-6">
-				${emergencyHtml}
-				${rateHtml}
-				${accommodationHtml || ''}
-				${flightHtml || ''}
-				<div class="minimal-shadow rounded-xl p-4 bg-yellow-50 border border-yellow-100">
-					<h3 class="text-lg font-bold text-yellow-800 mb-2 flex items-center">
-						<i class="fas fa-piggy-bank mr-2"></i> ${currentCountryName} 花費
-					</h3>
-					<div id="budget-info"><p class="text-sm font-semibold text-gray-600">正在加載花費數據...</p></div>
-					<div id="add-expense-form" class="mt-4 p-3 bg-yellow-100 rounded-lg">
-						<p class="font-semibold text-yellow-800 mb-2">新增支出</p>
-						<form id="expense-form" onsubmit="handleExpenseSubmit(event)">
-							<div class="flex space-x-2 mb-2">
-								<div class="relative w-1/3">
-									<select id="expense-currency" class="w-full p-2 border border-yellow-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500 text-sm appearance-none bg-white custom-select">
-										<option value="TWD">TWD</option>
-										<option value="USD">USD</option>
-										${localCurrencyCode && localCurrencyCode !== 'TWD' && localCurrencyCode !== 'USD' ? `<option value="${localCurrencyCode}">${localCurrencyCode}</option>` : ''}
-									</select>
-								</div>
-								<input type="number" id="expense-amount" placeholder="金額" required step="0.01" class="w-2/3 p-2 border border-yellow-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500 text-sm">
-							</div>
-							<input type="text" id="expense-description" placeholder="描述 (例如: 晚餐, 門票)" required class="w-full p-2 mb-3 border border-yellow-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500 text-sm">
-							<button type="submit" class="w-full py-2 bg-yellow-600 text-white rounded-lg shadow-md hover:bg-yellow-700 transition duration-150 ease-in-out font-semibold text-sm"><i class="fas fa-save mr-2"></i> 儲存支出</button>
-						</form>
-					</div>
-				</div>
-			</div>
-		`;
+		ui.content().innerHTML = `<h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2 mx-1"><i class="fas fa-tools text-red-500 mr-2"></i> 【${flag} ${currentCountryName} 工具】</h2><div class="space-y-6 mx-1">${emergencyHtml}${rateHtml}${accHtml}${fltHtml}<div class="minimal-shadow rounded-xl p-4 bg-yellow-50 border border-yellow-100"><h3 class="text-lg font-bold text-yellow-800 mb-2 flex items-center"><i class="fas fa-piggy-bank mr-2"></i> ${currentCountryName} 花費</h3><div id="budget-info"><p class="text-sm font-semibold text-gray-600">載入中...</p></div><div id="add-expense-form" class="mt-4 p-3 bg-yellow-100 rounded-lg"><p class="font-semibold text-yellow-800 mb-2">新增支出</p><form onsubmit="window.handleExpenseSubmit(event)"><div class="flex space-x-2 mb-2"><div class="relative w-1/3"><select id="expense-currency" class="w-full p-2 border border-yellow-300 rounded text-sm bg-white"><option value="TWD">TWD</option><option value="USD">USD</option>${currCode && currCode !== 'TWD' && currCode !== 'USD' ? `<option value="${currCode}">${currCode}</option>` : ''}</select></div><input type="number" id="expense-amount" placeholder="金額" required step="0.01" class="w-2/3 p-2 border border-yellow-300 rounded text-sm"></div><input type="text" id="expense-description" placeholder="描述" required class="w-full p-2 mb-3 border border-yellow-300 rounded text-sm"><button type="submit" class="w-full py-2 bg-yellow-600 text-white rounded shadow font-bold text-sm">儲存</button></form></div></div></div>`;
 	}
-	if (isAuthReady) setupBudgetListener();
+	setupBudgetListener();
 }
+
+window.openEditorModal = () => {
+	// 1. 填入國家選單 (來源是目前的 itineraryData)
+	const sel = document.getElementById('edit-select-country');
+	sel.innerHTML = '<option value="">-- 新增國家 --</option>' +
+		countries.map(c => `<option value="${c}">${itineraryData[c].flag} ${c}</option>`).join('');
+
+	// 重置表單
+	window.loadCountryToEditor(''); // 清空
+
+	const b = document.getElementById('editor-backdrop');
+	b.classList.remove('hidden');
+	// Force reflow for transition
+	void b.offsetWidth;
+	b.classList.add('active');
+	document.getElementById('editor-modal').classList.remove('scale-95', 'opacity-0');
+	document.getElementById('editor-modal').classList.add('scale-100', 'opacity-100');
+};
+
+window.closeEditorModal = () => {
+	const b = document.getElementById('editor-backdrop');
+	b.classList.remove('active');
+	document.getElementById('editor-modal').classList.remove('scale-100', 'opacity-100');
+	document.getElementById('editor-modal').classList.add('scale-95', 'opacity-0');
+	setTimeout(() => { b.classList.add('hidden'); }, 300);
+};
+
+window.loadCountryToEditor = (countryKey) => {
+	const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+	const containerAcc = document.getElementById('editor-acc-container');
+	const containerFlt = document.getElementById('editor-flight-container');
+	const containerDay = document.getElementById('editor-days-container');
+	containerAcc.innerHTML = ''; containerFlt.innerHTML = ''; containerDay.innerHTML = '';
+
+	if (!countryKey) {
+		// 清空模式
+		setVal('edit-country-name', ''); setVal('edit-country-flag', '');
+		setVal('edit-emergency', ''); setVal('edit-timezone', '');
+		setVal('edit-curr-code', ''); setVal('edit-curr-name', '');
+		setVal('edit-emb-name', ''); setVal('edit-emb-addr', ''); setVal('edit-emb-phone', '');
+		return;
+	}
+
+	const data = itineraryData[countryKey];
+	if (!data) return;
+
+	// 填入基本資料
+	setVal('edit-country-name', countryKey);
+	setVal('edit-country-flag', data.flag);
+	if (data.tools) {
+		setVal('edit-emergency', data.tools.emergency);
+		setVal('edit-timezone', data.tools.timezone);
+		setVal('edit-curr-code', data.tools.currencyCode);
+		let cName = data.tools.currency || '';
+		if (cName.includes('(')) cName = cName.split('(')[1].replace(')', '');
+		setVal('edit-curr-name', cName);
+	}
+	if (data.embassy) {
+		setVal('edit-emb-name', data.embassy.name);
+		setVal('edit-emb-addr', data.embassy.address);
+		setVal('edit-emb-phone', data.embassy.phone);
+	}
+
+	// 填入住宿
+	const accs = Array.isArray(data.accommodation) ? data.accommodation : (data.accommodation ? [data.accommodation] : []);
+	accs.forEach(acc => window.addEditorAccommodation(acc));
+
+	// 填入航班
+	const flts = Array.isArray(data.flight) ? data.flight : (data.flight ? [data.flight] : []);
+	flts.forEach(flt => window.addEditorFlight(flt));
+
+	// 填入行程
+	const dayKeys = Object.keys(data).filter(k => k.startsWith('Day')).sort((a, b) => parseInt(a.replace('Day ', '')) - parseInt(b.replace('Day ', '')));
+	dayKeys.forEach(k => window.addEditorDay(data[k]));
+};
+
+// Helper: Add UI Elements for Editor
+window.addEditorAccommodation = (data = null) => {
+	const div = document.createElement('div');
+	div.className = 'bg-white border rounded p-2 text-sm relative editor-acc-row';
+	div.innerHTML = `
+        <button onclick="this.parentElement.remove()" class="absolute top-1 right-1 text-red-500 font-bold">×</button>
+        <input class="w-full border mb-1 p-1 rounded acc-name" placeholder="名稱" value="${data?.name || ''}">
+        <input class="w-full border mb-1 p-1 rounded acc-addr" placeholder="地址" value="${data?.address || ''}">
+        <div class="flex gap-1 mb-1"><input class="w-1/2 border p-1 rounded acc-in" placeholder="In" value="${data?.checkIn || ''}"><input class="w-1/2 border p-1 rounded acc-out" placeholder="Out" value="${data?.checkOut || ''}"></div>
+        <input class="w-full border mb-1 p-1 rounded acc-note" placeholder="備註" value="${data?.note || ''}">
+        <input class="w-full border p-1 rounded acc-gmap" placeholder="Google Map 連結" value="${data?.gmap || ''}">
+    `;
+	document.getElementById('editor-acc-container').appendChild(div);
+};
+
+window.addEditorFlight = (data = null) => {
+	const div = document.createElement('div');
+	div.className = 'bg-white border rounded p-2 text-sm relative editor-flt-row';
+	div.innerHTML = `
+        <button onclick="this.parentElement.remove()" class="absolute top-1 right-1 text-red-500 font-bold">×</button>
+        <div class="flex gap-1 mb-1"><input class="w-1/2 border p-1 rounded flt-code" placeholder="航班" value="${data?.code || ''}"><input class="w-1/2 border p-1 rounded flt-route" placeholder="航線" value="${data?.route || ''}"></div>
+        <div class="flex gap-1"><input class="w-1/2 border p-1 rounded flt-time" placeholder="時間" value="${data?.time || ''}"><input class="w-1/2 border p-1 rounded flt-note" placeholder="備註" value="${data?.note || ''}"></div>
+    `;
+	document.getElementById('editor-flight-container').appendChild(div);
+};
+
+window.addEditorDay = (items = null) => {
+	const container = document.getElementById('editor-days-container');
+	const dayCount = container.children.length + 1;
+	const div = document.createElement('div');
+	div.className = 'bg-white border-l-4 border-blue-500 p-3 mb-3 rounded shadow-sm editor-day-block';
+	div.dataset.dayId = `Day ${dayCount}`;
+	div.innerHTML = `
+        <div class="flex justify-between items-center mb-2"><h5 class="font-bold text-blue-700">Day ${dayCount}</h5><button onclick="this.parentElement.parentElement.remove()" class="text-xs text-red-500">刪除</button></div>
+        <div class="editor-items-container space-y-2"></div>
+        <button onclick="window.addEditorItem(this)" class="mt-2 text-xs text-blue-600 font-bold">+ 景點</button>
+    `;
+	container.appendChild(div);
+	const itemContainer = div.querySelector('.editor-items-container');
+	if (items && Array.isArray(items)) {
+		items.forEach(item => window.createEditorItem(itemContainer, item));
+	}
+};
+
+window.addEditorItem = (btn) => { window.createEditorItem(btn.previousElementSibling); };
+window.createEditorItem = (container, data = null) => {
+	const div = document.createElement('div');
+	div.className = 'border p-2 rounded bg-gray-50 text-sm relative editor-item-row';
+	div.innerHTML = `
+        <button onclick="this.parentElement.remove()" class="absolute top-1 right-1 text-red-500 font-bold">×</button>
+        <div class="flex gap-1 mb-1">
+            <select class="border p-1 rounded w-1/3 item-type"><option value="Attraction" ${data?.type === 'Attraction' ? 'selected' : ''}>景點</option><option value="Restaurant" ${data?.type === 'Restaurant' ? 'selected' : ''}>餐廳</option><option value="Transportation" ${data?.type === 'Transportation' ? 'selected' : ''}>交通</option></select>
+            <input class="border p-1 rounded w-2/3 item-name" placeholder="名稱" value="${data?.name || ''}">
+        </div>
+        <div class="flex gap-1 mb-1"><input class="border p-1 rounded w-1/2 item-time" placeholder="時間" value="${data?.time || ''}"><input class="border p-1 rounded w-1/2 item-loc" placeholder="地點" value="${data?.location || ''}"></div>
+        <textarea class="w-full border p-1 rounded item-guide" rows="2" placeholder="攻略">${data?.guide || ''}</textarea>
+    `;
+	container.appendChild(div);
+};
+
+// 匯出 JSON 並下載
+window.downloadEditorJSON = () => {
+	// 1. 抓取表單資料
+	const countryName = document.getElementById('edit-country-name').value.trim();
+	if (!countryName) return alert('請輸入國家名稱');
+
+	const getVal = (id) => document.getElementById(id)?.value || '';
+
+	// 收集 Accommodations
+	const accs = [];
+	document.querySelectorAll('.editor-acc-row').forEach(row => {
+		if (row.querySelector('.acc-name').value) {
+			accs.push({
+				name: row.querySelector('.acc-name').value,
+				address: row.querySelector('.acc-addr').value,
+				checkIn: row.querySelector('.acc-in').value,
+				checkOut: row.querySelector('.acc-out').value,
+				note: row.querySelector('.acc-note').value,
+				gmap: row.querySelector('.acc-gmap').value
+			});
+		}
+	});
+
+	// 收集 Flights
+	const flts = [];
+	document.querySelectorAll('.editor-flt-row').forEach(row => {
+		if (row.querySelector('.flt-code').value) {
+			flts.push({
+				code: row.querySelector('.flt-code').value,
+				route: row.querySelector('.flt-route').value,
+				time: row.querySelector('.flt-time').value,
+				note: row.querySelector('.flt-note').value
+			});
+		}
+	});
+
+	// 建構新資料物件
+	const newCountryData = {
+		flag: getVal('edit-country-flag'),
+		tools: {
+			emergency: getVal('edit-emergency'),
+			currency: `${getVal('edit-curr-code')} (${getVal('edit-curr-name')})`,
+			currencyCode: getVal('edit-curr-code'),
+			timezone: getVal('edit-timezone')
+		},
+		embassy: {
+			name: getVal('edit-emb-name'),
+			address: getVal('edit-emb-addr'),
+			phone: getVal('edit-emb-phone')
+		},
+		accommodation: accs,
+		flight: flts
+	};
+
+	// 收集每日行程
+	document.querySelectorAll('.editor-day-block').forEach((block, idx) => {
+		const dayKey = `Day ${idx + 1}`;
+		const items = [];
+		block.querySelectorAll('.editor-item-row').forEach(row => {
+			if (row.querySelector('.item-name').value) {
+				items.push({
+					type: row.querySelector('.item-type').value,
+					name: row.querySelector('.item-name').value,
+					location: row.querySelector('.item-loc').value,
+					time: row.querySelector('.item-time').value,
+					guide: row.querySelector('.item-guide').value
+				});
+			}
+		});
+		if (items.length > 0) newCountryData[dayKey] = items;
+	});
+
+	// 2. 更新全域 itineraryData
+	itineraryData[countryName] = newCountryData;
+	countries = Object.keys(itineraryData); // Refresh keys if new country
+
+	// 3. 下載檔案
+	const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(itineraryData, null, 4));
+	const anchor = document.createElement('a');
+	anchor.setAttribute("href", dataStr);
+	anchor.setAttribute("download", "itinerary_data.json");
+	document.body.appendChild(anchor);
+	anchor.click();
+	anchor.remove();
+
+	// 4. 同步更新 LocalStorage 與畫面
+	localStorage.setItem('customItineraryData', JSON.stringify(itineraryData));
+	window.closeEditorModal();
+	alert('已下載 JSON，並同步更新目前顯示的行程！');
+	renderTools(); // Refresh tool view
+};
 
 window.navigateTo = function (viewName, data) {
 	if (viewName === 'country' && data === currentCountryName && currentView.name === 'country') return;
@@ -600,20 +703,20 @@ function setupBudgetListener() {
 	onSnapshot(budgetRef, (snapshot) => {
 		const entries = [];
 		snapshot.forEach(doc => entries.push({ id: doc.id, ...doc.data() }));
-		
+
 		// 在記憶體中進行過濾與排序 (Rule 2)
 		let targetEntries = entries;
 		if (currentCountryName) {
 			targetEntries = entries.filter(e => e.country === currentCountryName);
 		}
 		targetEntries.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
-		
+
 		updateBudgetUI(targetEntries);
 	}, (error) => {
 		// 權限錯誤或其他錯誤處理
 		console.error("Firestore Error:", error);
 		const infoDiv = document.getElementById('budget-info');
-		if(infoDiv) infoDiv.innerHTML = '<p class="text-sm text-red-400">無法讀取資料 (權限或連線錯誤)</p>';
+		if (infoDiv) infoDiv.innerHTML = '<p class="text-sm text-red-400">無法讀取資料 (權限或連線錯誤)</p>';
 	});
 }
 
@@ -651,7 +754,7 @@ function updateBudgetUI(entries) {
 
 // --- Window Functions ---
 window.navigateTo = (view, data) => { viewHistory.push(currentView); currentView = { name: view, data }; renderView(view, data); };
-window.goBack = () => { if(viewHistory.length) { currentView = viewHistory.pop(); renderView(currentView.name, currentView.data); } else renderCountry(countries[0]); };
+window.goBack = () => { if (viewHistory.length) { currentView = viewHistory.pop(); renderView(currentView.name, currentView.data); } else renderCountry(countries[0]); };
 window.openGuideModal = (title, content, loc) => {
 	document.getElementById('sheet-title').textContent = title;
 	document.getElementById('sheet-body').innerHTML = `<p class="mb-6 text-gray-700 leading-relaxed text-sm whitespace-pre-wrap">${content}</p><button onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}', '_blank')" class="w-full py-3 bg-red-500 text-white rounded-xl font-bold shadow-lg">Google Maps 導航</button>`;
@@ -685,30 +788,30 @@ window.handleExpenseSubmit = async (e) => {
 	} catch (err) { console.error("新增失敗", err); alert('新增失敗'); }
 };
 window.handleFileUpload = (e) => {
-	const file = e.target.files[0]; if(!file) return;
+	const file = e.target.files[0]; if (!file) return;
 	const reader = new FileReader();
 	reader.onload = (ev) => {
 		try {
 			const json = JSON.parse(ev.target.result);
-			if(typeof json === 'object') {
+			if (typeof json === 'object') {
 				localStorage.setItem('customItineraryData', JSON.stringify(json));
 				alert('匯入成功，請重新整理');
 				location.reload();
 			}
-		} catch(err) { alert('JSON 格式錯誤'); }
+		} catch (err) { alert('JSON 格式錯誤'); }
 	};
 	reader.readAsText(file);
 };
-window.resetItinerary = () => { if(confirm('清除自訂行程?')) { localStorage.removeItem('customItineraryData'); location.reload(); } };
+window.resetItinerary = () => { if (confirm('清除自訂行程?')) { localStorage.removeItem('customItineraryData'); location.reload(); } };
 
 // --- 啟動 ---
 async function init() {
 	await loadItineraryData();
-	if(auth) {
+	if (auth) {
 		onAuthStateChanged(auth, (u) => {
 			isAuthReady = true; userId = u ? u.uid : null;
-			if(!userId) signInAnonymously(auth).catch(console.error);
-			if(currentView.name === 'home') renderCountry(countries[0]);
+			if (!userId) signInAnonymously(auth).catch(console.error);
+			if (currentView.name === 'home') renderCountry(countries[0]);
 		});
 	} else {
 		renderCountry(countries[0]); // 離線模式渲染

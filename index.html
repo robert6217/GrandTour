@@ -181,6 +181,89 @@
 				<!-- Guide Details -->
 			</div>
 		</div>
+		<!-- 行程編輯器 Modal (新增) -->
+        <div id="editor-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-50 modal-backdrop hidden flex items-center justify-center">
+            <div id="editor-modal" class="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl flex flex-col overflow-hidden shadow-2xl transform transition-all">
+                <!-- Editor Header -->
+                <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-indigo-50">
+                    <h3 class="text-lg font-bold text-indigo-800"><i class="fas fa-edit mr-2"></i>行程編輯器</h3>
+                    <button onclick="window.closeEditorModal()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                
+                <!-- Editor Body -->
+                <div class="p-4 overflow-y-auto flex-grow bg-gray-50" id="editor-body">
+                    
+                    <!-- 1. 選擇國家 -->
+                    <div class="editor-section">
+                        <label class="editor-label">選擇編輯國家 / 或輸入新國家</label>
+                        <select id="edit-select-country" class="editor-input mb-2 custom-select" onchange="window.loadCountryToEditor(this.value)">
+                            <option value="">-- 新增國家 --</option>
+                        </select>
+                        <div class="grid grid-cols-4 gap-2">
+                            <div class="col-span-3">
+                                <input type="text" id="edit-country-name" class="editor-input" placeholder="國家名稱 (Key)" spellcheck="false">
+                            </div>
+                            <div>
+                                <input type="text" id="edit-country-flag" class="editor-input text-center" placeholder="Emoji" spellcheck="false">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. 基本工具 -->
+                    <div class="editor-section">
+                        <h4 class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">🛠️ 當地資訊</h4>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div><label class="editor-label">緊急電話</label><input id="edit-emergency" class="editor-input" placeholder="110"></div>
+                            <div><label class="editor-label">時區</label><input id="edit-timezone" class="editor-input" placeholder="UTC+9"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="editor-label">貨幣代碼</label><input id="edit-curr-code" class="editor-input" placeholder="JPY"></div>
+                            <div><label class="editor-label">貨幣名稱</label><input id="edit-curr-name" class="editor-input" placeholder="日圓"></div>
+                        </div>
+                    </div>
+
+                    <!-- 3. 外館 -->
+                    <div class="editor-section">
+                        <h4 class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">🏛️ 外館資訊</h4>
+                        <input id="edit-emb-name" class="editor-input mb-2" placeholder="外館名稱">
+                        <input id="edit-emb-addr" class="editor-input mb-2" placeholder="地址">
+                        <input id="edit-emb-phone" class="editor-input" placeholder="電話">
+                    </div>
+
+                    <!-- 4. 住宿 (動態) -->
+                    <div class="editor-section">
+                        <div class="flex justify-between items-center mb-2 border-b pb-1">
+                            <h4 class="text-sm font-bold text-gray-700">🛏️ 住宿</h4>
+                            <button onclick="window.addEditorAccommodation()" class="text-xs text-indigo-600 font-bold">+ 新增</button>
+                        </div>
+                        <div id="editor-acc-container" class="space-y-2"></div>
+                    </div>
+
+                    <!-- 5. 航班 (動態) -->
+                    <div class="editor-section">
+                        <div class="flex justify-between items-center mb-2 border-b pb-1">
+                            <h4 class="text-sm font-bold text-gray-700">✈️ 航班</h4>
+                            <button onclick="window.addEditorFlight()" class="text-xs text-indigo-600 font-bold">+ 新增</button>
+                        </div>
+                        <div id="editor-flight-container" class="space-y-2"></div>
+                    </div>
+
+                    <!-- 6. 每日行程 (動態) -->
+                    <div id="editor-days-container"></div>
+                    <button onclick="window.addEditorDay()" class="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:bg-gray-100 font-bold mb-4">
+                        <i class="fas fa-plus mr-2"></i> 新增一天行程
+                    </button>
+
+                </div>
+
+                <!-- Editor Footer -->
+                <div class="p-4 border-t border-gray-100 bg-white flex gap-3">
+                    <button onclick="window.downloadEditorJSON()" class="flex-1 py-3 bg-green-600 text-white rounded-lg font-bold shadow hover:bg-green-700 flex items-center justify-center">
+                        <i class="fas fa-download mr-2"></i> 下載 JSON
+                    </button>
+                </div>
+            </div>
+        </div>
 	</div>
 	<script type="module" src="/src/main.js"></script>
 </body>
