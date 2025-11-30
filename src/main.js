@@ -2,14 +2,24 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, signInAnonymously, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, onSnapshot, collection, addDoc, deleteDoc, doc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-const firebaseConfig = {
-	apiKey: "YOUR_API_KEY",
-	authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-	projectId: "YOUR_PROJECT_ID",
-	storageBucket: "YOUR_PROJECT_ID.appspot.com",
-	messagingSenderId: "YOUR_SENDER_ID",
-	appId: "YOUR_APP_ID"
+let firebaseConfig = {
+    apiKey: "",
+    authDomain: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: ""
 };
+
+const storedConfig = localStorage.getItem('custom_firebase_config');
+if (storedConfig) {
+    try {
+        firebaseConfig = JSON.parse(storedConfig);
+        console.log("已載入自訂 Firebase 設定");
+    } catch (e) {
+        console.error("設定檔解析失敗", e);
+    }
+}
 
 // 初始化 Firebase
 const appId = "grand-tour-1c4f8"; // 固定 App ID
@@ -22,6 +32,7 @@ try {
 	app = initializeApp(firebaseConfig);
 	db = getFirestore(app);
 	auth = getAuth(app);
+	isFirebaseAvailable = true;
 	console.log("Firebase 初始化成功");
 } catch (e) {
 	console.error("Firebase 初始化失敗，請檢查 config 設定", e);
@@ -370,9 +381,26 @@ const updateUI = (view, title, back) => {
 // --- 工具箱渲染邏輯 ---
 const renderTools = () => {
 	updateUI('tools', '旅途工具箱', true);
-	const importSection = `<div class="mb-6 bg-white rounded-xl p-4 border border-gray-200 minimal-shadow mx-1"><h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center"><i class="fas fa-file-import mr-2 text-blue-500"></i>資料管理</h3><button onclick="window.openEditorModal()" class="w-full mb-3 py-2.5 bg-indigo-600 text-white rounded-lg font-bold shadow-sm hover:bg-indigo-700 flex items-center justify-center">
-                <i class="fas fa-edit mr-2"></i> 開啟行程編輯器 (新增/修改/匯出)
-            </button><div class="flex gap-2"><label class="flex-1 cursor-pointer py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-semibold text-center hover:bg-blue-100 transition border border-blue-100">匯入 JSON<input type="file" class="hidden" accept=".json" onchange="window.handleFileUpload(event)"></label><button onclick="window.resetItinerary()" class="px-3 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm font-semibold hover:bg-gray-200 transition"><i class="fas fa-undo"></i></button></div></div>`;
+	const configSection = `
+        <div class="mb-6 bg-white rounded-xl p-4 border border-orange-200 shadow-sm mx-1">
+            <h3 class="text-sm font-bold text-orange-800 mb-2 flex items-center">
+                <i class="fas fa-key mr-2"></i> Firebase 設定
+            </h3>
+            <div class="flex justify-between items-center">
+                <p class="text-xs text-gray-500">
+                    ${isFirebaseAvailable ? '<span class="text-green-600 font-bold">● 已載入設定</span>' : '<span class="text-red-500 font-bold">● 未設定 (離線模式)</span>'}
+                </p>
+                <div class="flex gap-2">
+                    <label class="cursor-pointer text-xs bg-orange-100 text-orange-600 px-3 py-1.5 rounded-lg hover:bg-orange-200 transition font-bold">
+                        上傳 Config
+                        <input type="file" class="hidden" accept=".json" onchange="window.handleConfigUpload(event)">
+                    </label>
+                    ${isFirebaseAvailable ? `<button onclick="window.clearConfig()" class="text-xs bg-gray-100 text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-200">清除</button>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+	const importSection = `<div class="mb-6 bg-white rounded-xl p-4 border border-gray-200 minimal-shadow mx-1"><h3 class="text-sm font-bold text-gray-700 mb-2 flex items-center"><i class="fas fa-file-import mr-2 text-blue-500"></i> 資料管理</h3><button onclick="window.openEditorModal()" class="w-full mb-3 py-2.5 bg-indigo-600 text-white rounded-lg font-bold shadow-sm hover:bg-indigo-700 flex items-center justify-center"><i class="fas fa-edit mr-2"></i> 開啟行程編輯器</button><div class="flex gap-2"><label class="flex-1 cursor-pointer py-2 bg-gray-50 text-gray-600 rounded-lg text-sm font-semibold text-center hover:bg-gray-100 border border-gray-200"><i class="fas fa-upload mr-1"></i> 匯入 JSON<input type="file" class="hidden" accept=".json" onchange="window.handleFileUpload(event)"></label><button onclick="window.resetItinerary()" class="px-3 py-2 bg-red-50 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-100 border border-red-100"><i class="fas fa-trash"></i></button></div></div>`;
 
 	if (!currentCountryName) {
 		// Global View
@@ -391,7 +419,7 @@ const renderTools = () => {
 			});
 		});
 
-		ui.content().innerHTML = `${importSection}<h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2 mx-1"><i class="fas fa-globe-asia text-red-500 mr-2"></i> 全球通用資訊</h2><div class="space-y-6 mx-1"><div class="minimal-shadow rounded-xl p-4 bg-yellow-50 border border-yellow-100"><h3 class="text-lg font-bold text-yellow-800 mb-2 flex items-center"><i class="fas fa-piggy-bank mr-2"></i> 總花費</h3><div id="budget-info"><p class="text-sm font-semibold text-gray-600">載入中...</p></div></div><div class="minimal-shadow rounded-xl p-4 bg-green-50 border border-green-100"><h3 class="text-lg font-bold text-green-800 mb-3 flex items-center"><i class="fas fa-bed mr-2"></i> 住宿總覽</h3><div class="max-h-60 overflow-y-auto pr-1">${allAccommodationsHtml || '<p class="text-xs text-gray-400">無資料</p>'}</div></div><div class="minimal-shadow rounded-xl p-4 bg-blue-50 border border-blue-100"><h3 class="text-lg font-bold text-blue-800 mb-3 flex items-center"><i class="fas fa-plane-departure mr-2"></i> 航班總覽</h3><div class="max-h-60 overflow-y-auto pr-1">${allFlightsHtml || '<p class="text-xs text-gray-400">無資料</p>'}</div></div></div>`;
+		ui.content().innerHTML = `${configSection}${importSection}<h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2 mx-1"><i class="fas fa-globe-asia text-red-500 mr-2"></i> 全球通用資訊</h2><div class="space-y-6 mx-1"><div class="minimal-shadow rounded-xl p-4 bg-yellow-50 border border-yellow-100"><h3 class="text-lg font-bold text-yellow-800 mb-2 flex items-center"><i class="fas fa-piggy-bank mr-2"></i> 總花費</h3><div id="budget-info"><p class="text-sm font-semibold text-gray-600">載入中...</p></div></div><div class="minimal-shadow rounded-xl p-4 bg-green-50 border border-green-100"><h3 class="text-lg font-bold text-green-800 mb-3 flex items-center"><i class="fas fa-bed mr-2"></i> 住宿總覽</h3><div class="max-h-60 overflow-y-auto pr-1">${allAccommodationsHtml || '<p class="text-xs text-gray-400">無資料</p>'}</div></div><div class="minimal-shadow rounded-xl p-4 bg-blue-50 border border-blue-100"><h3 class="text-lg font-bold text-blue-800 mb-3 flex items-center"><i class="fas fa-plane-departure mr-2"></i> 航班總覽</h3><div class="max-h-60 overflow-y-auto pr-1">${allFlightsHtml || '<p class="text-xs text-gray-400">無資料</p>'}</div></div></div>`;
 	} else {
 		// Country View
 		const tools = itineraryData[currentCountryName].tools;
@@ -701,11 +729,24 @@ window.deleteExpense = async (id) => {
     }
 };
 
-function getBudgetCollectionRef() { 
-    // 嚴格檢查：必須有 db 實例，且 auth.currentUser 存在 (代表已登入)
-    if (!db || !auth.currentUser || !appId) return null; 
-    return collection(db, `artifacts/${appId}/users/${auth.currentUser.uid}/budget_entries`); 
-}
+window.handleConfigUpload = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = (ev) => {
+        try {
+            const config = JSON.parse(ev.target.result);
+            if (config.apiKey && config.projectId) {
+                localStorage.setItem('custom_firebase_config', JSON.stringify(config));
+                alert('設定檔匯入成功！網頁將重新整理以套用設定。');
+                window.location.reload();
+            } else {
+                alert('設定檔格式錯誤 (缺少 apiKey 或 projectId)');
+            }
+        } catch (err) { alert('JSON 解析錯誤'); }
+    };
+    r.readAsText(f);
+};
 
 function setupBudgetListener() {
 	// 1. 檢查 Auth 狀態
