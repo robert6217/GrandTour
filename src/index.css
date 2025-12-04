@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+	margin: 0;
+	font-family: 'Noto Serif TC', serif;
+}
+
+/* Leaflet Custom Marker Style */
+.custom-map-marker {
+	background: transparent;
+	border: none;
+}
