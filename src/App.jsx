@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
 	Globe, Plus, Briefcase, Calendar, DollarSign,
 	Trash2, Plane, Sun, CloudRain, Cloud, Home,
-	ChevronRight, Menu, X, Clock, MapPin,
+	ChevronRight, ChevronLeft, Menu, X, Clock, MapPin,
 	Phone, Building, Utensils, Camera, Bus, Bed, ShoppingBag,
 	Download, Upload
 } from 'lucide-react';
@@ -101,11 +101,16 @@ const getDatesInRange = (startDate, endDate) => {
 	const currDate = new Date(startDate);
 	const lastDate = new Date(endDate);
 	let dayCount = 1;
+	const weekDays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+
 	while (currDate <= lastDate) {
 		dates.push({
 			dateStr: currDate.toISOString().split('T')[0],
 			displayDate: `${currDate.getMonth() + 1}/${currDate.getDate()}`,
-			dayNum: `Day ${dayCount}`
+			month: currDate.getMonth() + 1,
+			date: currDate.getDate(),
+			dayNum: `Day ${dayCount}`,
+			weekday: weekDays[currDate.getDay()] // Add weekday info
 		});
 		currDate.setDate(currDate.getDate() + 1);
 		dayCount++;
@@ -133,10 +138,32 @@ function getWeatherDesc(code) {
 const fetchWeatherData = async (locationQuery) => {
 	try {
 		const cleanLocation = locationQuery.trim();
-		const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanLocation)}&count=1&language=zh&format=json`;
-		const geoRes = await fetch(geoUrl);
-		const geoData = await geoRes.json();
-		if (!geoData.results || geoData.results.length === 0) return null;
+		// Create candidates: Full string, Last word (often city), First word
+		const candidates = [
+			cleanLocation,
+			cleanLocation.split(' ').pop(),
+			cleanLocation.split(' ')[0]
+		].filter((item, index, self) => item && item.length > 0 && self.indexOf(item) === index);
+
+		let geoData = null;
+
+		// Try candidates sequentially
+		for (const term of candidates) {
+			try {
+				const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(term)}&count=1&language=zh&format=json`;
+				const geoRes = await fetch(geoUrl);
+				const data = await geoRes.json();
+				if (data.results && data.results.length > 0) {
+					geoData = data;
+					break; // Found match
+				}
+			} catch (e) {
+				console.warn(`Weather search failed for term: ${term}`);
+			}
+		}
+
+		if (!geoData || !geoData.results || geoData.results.length === 0) return { notFound: true };
+
 		const { latitude, longitude } = geoData.results[0];
 		const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=auto`;
 		const weatherRes = await fetch(weatherUrl);
@@ -150,6 +177,7 @@ const fetchWeatherData = async (locationQuery) => {
 			return { notFound: true };
 		}
 	} catch (error) {
+		console.error("Fetch weather error:", error);
 		return null;
 	}
 };
@@ -181,6 +209,52 @@ const EventIcon = ({ type }) => {
 		case 'shopping': return <ShoppingBag size={14} className="text-pink-500" />;
 		default: return <MapPin size={14} className="text-slate-400" />;
 	}
+};
+
+const EventItem = ({ event, updateEvent, deleteEvent }) => {
+	const textareaRef = useRef(null);
+
+	// Auto-resize textarea
+	useEffect(() => {
+		if (textareaRef.current) {
+			// Reset height to shrink if needed
+			textareaRef.current.style.height = 'auto';
+			// Set height to scrollHeight to fit content
+			textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+		}
+	}, [event.note]);
+
+	return (
+		<div className="relative pl-6 border-l-2 border-slate-200">
+			<div className="absolute -left-[9px] top-0 w-4 h-4 bg-white rounded-full border-2 border-slate-300 shadow-sm flex items-center justify-center p-0.5">
+				<div className="w-full h-full bg-slate-300 rounded-full"></div>
+			</div>
+			<div className="bg-white p-3 rounded-lg shadow-sm border border-slate-100 group hover:shadow-md transition-shadow">
+				<div className="flex items-start gap-2 mb-2">
+					<div className="text-sm font-bold font-mono text-slate-800 border border-transparent">{event.time}</div>
+					<div className="flex-1 min-w-0">
+						<div className="flex items-center gap-2 mb-1">
+							<div className="relative group/type shrink-0">
+								<button className="p-1 rounded hover:bg-slate-100 text-slate-500"><EventIcon type={event.type} /></button>
+								<div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 shadow-lg rounded-lg p-1 hidden group-hover/type:flex gap-1 z-10">{['food', 'attraction', 'transport', 'stay', 'shopping'].map(t => (<button key={t} onClick={() => updateEvent(event.id, 'type', t)} className={`p-1.5 rounded hover:bg-slate-100 ${event.type === t ? 'bg-blue-50' : ''}`} title={t}><EventIcon type={t} /></button>))}</div>
+							</div>
+							<input type="text" placeholder="地點名稱" className="flex-1 min-w-0 font-bold text-slate-800 bg-transparent focus:outline-none border-b border-transparent focus:border-slate-300 pb-0.5" value={event.location} onChange={(e) => updateEvent(event.id, 'location', e.target.value)} />
+						</div>
+						{/* UPDATED: Auto-resizing textarea */}
+						<textarea
+							ref={textareaRef}
+							placeholder="備註、計畫..."
+							className="w-full bg-transparent text-sm text-slate-500 focus:outline-none resize-none overflow-hidden"
+							rows={1}
+							value={event.note}
+							onChange={(e) => updateEvent(event.id, 'note', e.target.value)}
+						/>
+					</div>
+					<button onClick={() => deleteEvent(event.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity p-1 shrink-0"><Trash2 size={16} /></button>
+				</div>
+			</div>
+		</div>
+	);
 };
 
 // --- Components ---
@@ -295,7 +369,7 @@ const MapView = ({ trips, onSelectTrip }) => {
 		<div className="relative w-full h-full flex flex-col font-serif">
 			<div ref={mapContainerRef} className="absolute inset-0 z-0 bg-slate-100" />
 			<div className="z-10 p-6 pt-12 flex flex-col h-full pointer-events-none">
-				<h1 className="text-3xl font-bold text-slate-800 mb-2 text-center drop-shadow-sm tracking-widest bg-white/60 backdrop-blur-sm py-2 rounded-xl border border-white/40 self-center px-8 shadow-sm">My World Travel</h1>
+				<h1 className="text-3xl font-bold text-slate-800 mb-2 text-center drop-shadow-sm tracking-widest bg-white/60 backdrop-blur-sm py-2 rounded-xl border border-white/40 self-center px-8 shadow-sm">一路向西<p>直到世界盡頭</p></h1>
 				{trips.length === 0 && (
 					<div className="flex-1 flex items-center justify-center">
 						<div className="bg-white/80 backdrop-blur-md border border-white/50 p-8 rounded-xl text-center shadow-sm pointer-events-auto">
@@ -319,10 +393,34 @@ const ToolboxView = ({ trip }) => {
 		<div className="space-y-4 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 				<div className="bg-red-50 border border-red-100 p-4 rounded-xl">
-					<h4 className="font-bold text-red-800 flex items-center gap-2 mb-3"><div className="p-1 bg-red-100 rounded-lg"><Phone size={16} /></div>緊急聯絡</h4>
+					<h4 className="font-bold text-red-800 flex items-center gap-2 mb-3"><div className="p-1 bg-red-100 rounded-lg"><Phone size={16} /></div>緊急救援</h4>
 					<div className="space-y-2 text-sm text-red-700">
-						<div className="flex justify-between border-b border-red-100 pb-1"><span>報警/救護</span><span className="font-mono font-bold text-lg">{tools.emergency || '112'}</span></div>
-						<div className="text-xs opacity-70">遇到緊急狀況請保持冷靜並撥打上述電話。</div>
+						<div className="space-y-1 text-sm text-red-700"><p><strong>報警:</strong> <span className="font-bold text-red-600 text-lg">{tools.emergency || '999'}</span></p></div>
+						<div className="mt-3 pt-3 border-t border-red-100"><p className="font-bold text-sm text-red-900 mb-1">大使館 / 代表處</p>
+							<div className="font-bold text-base text-gray-800">
+								<div className="font-bold">{embassy.name || '未設定'}</div>
+								<div className="flex gap-2 items-center opacity-80"><Phone size={14} />
+									<span className="font-mono">{embassy.phone || '無電話'}</span>
+								</div>
+								<div className="font-bold"><button onClick={() => window.open(embassy.gmaps_url, '_blank')} className="mt-2 w-full py-1.5 bg-red-600 text-white rounded text-xs font-bold">導航</button></div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
+					<h4 className="font-bold text-emerald-800 flex items-center gap-2 mb-3"><div className="p-1 bg-emerald-100 rounded-lg"><Home size={16} /></div>住宿資訊</h4>
+					<div className="text-sm text-emerald-900 space-y-3">
+						<div className="flex justify-between items-center"><div className="font-bold text-lg">{accommodation.name || '未設定飯店'}</div></div>
+
+						<div className="grid grid-cols-2 gap-4 bg-white/50 p-2 rounded-lg"><div className="text-center"><div className="text-xs opacity-60">Check-in</div><div className="font-mono font-bold">{accommodation.checkIn}</div></div><div className="text-center"><div className="text-xs opacity-60">Check-out</div><div className="font-mono font-bold">{accommodation.checkOut}</div></div></div>
+						{accommodation.note && (<div className="text-xs bg-emerald-100/50 p-2 rounded text-emerald-800 border-l-2 border-emerald-300">{accommodation.note}</div>)}
+						<button onClick={() => window.open(accommodation.gmaps_url, '_blank')} className="mt-2 w-full py-1.5 bg-emerald-600 text-white rounded text-xs font-bold">導航</button>
+					</div>
+				</div>
+				<div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
+					<h4 className="font-bold text-blue-800 flex items-center gap-2 mb-3"><div className="p-1 bg-blue-100 rounded-lg"><Plane size={16} /></div>航班資訊</h4>
+					<div className="text-sm text-blue-900 space-y-3">
+
 					</div>
 				</div>
 				<div className="bg-slate-50 border border-slate-100 p-4 rounded-xl">
@@ -331,19 +429,6 @@ const ToolboxView = ({ trip }) => {
 						<div><div className="text-xs text-slate-400">當地貨幣</div><div className="font-bold text-slate-800">{tools.currency || '未知'}</div></div>
 						<div><div className="text-xs text-slate-400">時區</div><div className="font-bold text-slate-800">{tools.timezone || 'UTC'}</div></div>
 					</div>
-				</div>
-			</div>
-			<div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
-				<h4 className="font-bold text-blue-800 flex items-center gap-2 mb-3"><div className="p-1 bg-blue-100 rounded-lg"><Building size={16} /></div>大使館 / 代表處</h4>
-				<div className="text-sm text-blue-900 space-y-2"><div className="font-bold">{embassy.name || '未設定'}</div><div className="flex gap-2 items-start opacity-80"><MapPin size={14} className="mt-0.5 shrink-0" /><span>{embassy.address || '無地址資訊'}</span></div><div className="flex gap-2 items-center opacity-80"><Phone size={14} /><span className="font-mono">{embassy.phone || '無電話'}</span></div></div>
-			</div>
-			<div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
-				<h4 className="font-bold text-emerald-800 flex items-center gap-2 mb-3"><div className="p-1 bg-emerald-100 rounded-lg"><Home size={16} /></div>住宿資訊</h4>
-				<div className="text-sm text-emerald-900 space-y-3">
-					<div className="flex justify-between items-center"><div className="font-bold text-lg">{accommodation.name || '未設定飯店'}</div></div>
-					<a href={accommodation.gmaps_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-emerald-600 text-white py-3 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm font-bold"><MapPin size={18} />導航至飯店 (Google Maps)</a>
-					<div className="grid grid-cols-2 gap-4 bg-white/50 p-2 rounded-lg"><div className="text-center"><div className="text-xs opacity-60">Check-in</div><div className="font-mono font-bold">{accommodation.checkIn}</div></div><div className="text-center"><div className="text-xs opacity-60">Check-out</div><div className="font-mono font-bold">{accommodation.checkOut}</div></div></div>
-					{accommodation.note && (<div className="text-xs bg-emerald-100/50 p-2 rounded text-emerald-800 border-l-2 border-emerald-300">{accommodation.note}</div>)}
 				</div>
 			</div>
 		</div>
@@ -387,76 +472,87 @@ const TripDetailView = ({ trip, onUpdateTrip, onDeleteTrip }) => {
 		const updatedTrip = { ...trip, days: { ...trip.days, [selectedDateStr]: { ...currentDayData, events: updatedEvents } } };
 		onUpdateTrip(updatedTrip);
 	};
-	const toggleFlight = () => {
-		const newFlight = currentDayData.flight ? null : { code: '', depTime: '08:00', arrTime: '12:00', from: '', to: '' };
-		const updatedTrip = { ...trip, days: { ...trip.days, [selectedDateStr]: { ...currentDayData, flight: newFlight } } };
-		onUpdateTrip(updatedTrip);
-	};
-	const updateFlight = (field, value) => {
-		if (!currentDayData.flight) return;
-		const updatedTrip = { ...trip, days: { ...trip.days, [selectedDateStr]: { ...currentDayData, flight: { ...currentDayData.flight, [field]: value } } } };
-		onUpdateTrip(updatedTrip);
-	};
-	const handleExtendTrip = () => {
-		const currentEndDate = new Date(trip.endDate); currentEndDate.setDate(currentEndDate.getDate() + 1);
-		onUpdateTrip({ ...trip, endDate: currentEndDate.toISOString().split('T')[0] });
-	};
 
-	const renderItinerary = () => (
-		<div className="space-y-6 pb-24 animate-in fade-in duration-300 font-serif">
-			<div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-				<div className="flex items-center gap-3"><div className="bg-blue-100 text-blue-600 p-2 rounded-lg"><Calendar size={20} /></div><div><h3 className="font-bold text-slate-800 text-lg">{dates.find(d => d.dateStr === selectedDateStr)?.displayDate}</h3><span className="text-xs text-slate-500">{dates.find(d => d.dateStr === selectedDateStr)?.dayNum}</span></div></div>
-				<div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 min-w-[140px] justify-center relative group">
-					{loadingWeather ? <span className="text-xs text-slate-400 animate-pulse">載入中...</span> : weatherInfo && !weatherInfo.notFound ? <><div className="flex flex-col items-center justify-center"><span className="text-xl leading-none mb-1 drop-shadow-sm">{String(weatherInfo.icon)}</span><span className="text-[10px] text-slate-500 font-medium">{String(weatherInfo.text)}</span></div><div className="h-8 w-px bg-slate-200 mx-2"></div><div className="flex items-center text-lg font-bold text-slate-700">{weatherInfo.temp}°C</div></> : <span className="text-xs text-slate-400">無訊號</span>}
+	const renderDayList = () => (
+		<div className="space-y-4 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
+			{/* Weather Widget Moved Here */}
+			<div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between shadow-sm mb-4">
+				<div className="flex items-center gap-3 flex-1 min-w-0">
+					<div className="bg-white p-2 rounded-full shadow-sm text-blue-500">
+						{loadingWeather ? <Cloud className="animate-pulse" size={20} /> : <span className="text-2xl">{weatherInfo?.icon || '🌡️'}</span>}
+					</div>
+					<div>
+						<h3 className="font-bold text-slate-800 text-sm opacity-60">當地天氣</h3>
+						<div className="text-blue-900 font-bold">
+							{loadingWeather ? '讀取中...' : (weatherInfo && !weatherInfo.notFound) ? `${weatherInfo.temp}°C ${weatherInfo.text}` : '無法取得資訊'}
+						</div>
+					</div>
+				</div>
+				<div className="text-right">
+					<div className="text-blue-300 text-xs">Open-Meteo</div>
 				</div>
 			</div>
 
-			<div className="relative">
-				{!currentDayData.flight && (<button onClick={toggleFlight} className="w-full py-4 border-2 border-dashed border-indigo-200 rounded-xl text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 transition-all flex items-center justify-center gap-2 font-medium"><Plane size={20} /> 新增航班資訊</button>)}
-				{currentDayData.flight && (
-					<div className="bg-white rounded-2xl shadow-md overflow-hidden border border-slate-200">
-						<div className="h-2 w-full bg-indigo-500"></div>
-						<div className="p-5">
-							<div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4"><div className="flex items-center gap-3"><div className="bg-indigo-100 p-2 rounded-full text-indigo-600"><Plane size={20} /></div><input placeholder="航班號" className="font-bold text-lg text-slate-800 placeholder:text-slate-300 focus:outline-none w-40 font-serif" value={currentDayData.flight.code} onChange={(e) => updateFlight('code', e.target.value)} /></div><button onClick={toggleFlight} className="text-xs text-red-400 hover:text-red-600 px-3 py-1 rounded hover:bg-red-50 transition-colors">移除</button></div>
-							<div className="flex items-center justify-between mb-6 px-2">
-								<div className="flex flex-col items-start w-1/3"><span className="text-xs text-slate-400 mb-1 uppercase tracking-wider">Departure</span><input placeholder="DEP" className="text-4xl font-black text-slate-800 w-full bg-transparent focus:outline-none placeholder:text-slate-200 uppercase font-serif" value={currentDayData.flight.from} onChange={(e) => updateFlight('from', e.target.value.toUpperCase())} maxLength={3} /><input type="time" className="mt-1 text-sm font-medium text-slate-500 bg-slate-50 rounded px-1 w-full font-serif" value={currentDayData.flight.depTime || ''} onChange={(e) => updateFlight('depTime', e.target.value)} /></div>
-								<div className="flex flex-col items-center justify-center w-1/3"><div className="w-full h-px bg-slate-300 relative top-3"></div><div className="bg-white z-10 px-2"><Plane className="rotate-90 text-slate-300" size={24} /></div><span className="text-[10px] text-slate-400 mt-2 font-mono">TO</span></div>
-								<div className="flex flex-col items-end w-1/3"><span className="text-xs text-slate-400 mb-1 uppercase tracking-wider text-right w-full">Arrival</span><input placeholder="ARR" className="text-4xl font-black text-slate-800 w-full text-right bg-transparent focus:outline-none placeholder:text-slate-200 uppercase font-serif" value={currentDayData.flight.to} onChange={(e) => updateFlight('to', e.target.value.toUpperCase())} maxLength={3} /><input type="time" className="mt-1 text-sm font-medium text-slate-500 bg-slate-50 rounded px-1 w-full text-right font-serif" value={currentDayData.flight.arrTime || ''} onChange={(e) => updateFlight('arrTime', e.target.value)} /></div>
+			<h3 className="font-bold text-slate-800 text-lg mb-2 px-1">行程總覽</h3>
+			{dates.map((d) => {
+				// Calculate event summary for preview
+				const dayEvents = trip.days?.[d.dateStr]?.events || [];
+				const eventPreview = dayEvents.length > 0
+					? dayEvents.map(e => e.location || e.item || '行程').slice(0, 2).join(' · ') + (dayEvents.length > 2 ? '...' : '')
+					: '點擊新增行程...';
+
+				return (
+					<div
+						key={d.dateStr}
+						onClick={() => setSelectedDateStr(d.dateStr)}
+						className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer hover:shadow-md transition-all active:scale-[0.98] group"
+					>
+						<div className="flex items-center gap-4 flex-1 overflow-hidden">
+							{/* Date Box: Enhanced Visuals */}
+							<div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-2 w-16 h-16 flex flex-col items-center justify-center shadow-md shadow-blue-200 shrink-0">
+								<span className="text-[10px] font-bold opacity-80 uppercase">{d.month}月</span>
+								<span className="text-2xl font-serif font-bold leading-none">{d.date}</span>
+							</div>
+
+							{/* Text Info: Replaced redundant date with Weekday and Preview */}
+							<div className="flex-1 min-w-0">
+								<div className="flex items-baseline gap-2 mb-1">
+									<div className="font-bold text-slate-800 text-lg font-serif">{d.dayNum}</div>
+									<div className="text-sm font-bold text-slate-400 border-l border-slate-300 pl-2">{d.weekday}</div>
+								</div>
+								<div className={`text-sm truncate font-serif ${dayEvents.length > 0 ? 'text-slate-600' : 'text-slate-300 italic'}`}>
+									{eventPreview}
+								</div>
 							</div>
 						</div>
-						<div className="relative h-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between"><div className="w-3 h-3 bg-slate-100 rounded-full -ml-1.5 border-r border-slate-200"></div><div className="border-t border-dashed border-slate-300 w-full h-px"></div><div className="w-3 h-3 bg-slate-100 rounded-full -mr-1.5 border-l border-slate-200"></div></div>
-						<div className="bg-slate-50 p-3 flex justify-between items-center text-xs text-slate-400"><span>BOARDING PASS</span><span>CLASS: ECONOMY</span></div>
+						<div className="pl-2">
+							<ChevronRight className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+						</div>
 					</div>
-				)}
+				);
+			})}
+		</div>
+	);
+
+	const renderItinerary = () => (
+		<div className="space-y-6 pb-24 animate-in fade-in slide-in-from-right-4 duration-300 font-serif">
+			<div className="flex items-center gap-2 mb-2 sticky top-0 bg-slate-50 py-2 z-10">
+				<button onClick={() => setSelectedDateStr(null)} className="flex items-center gap-1 text-slate-500 hover:text-blue-600 hover:bg-slate-100 pr-3 pl-1 py-1.5 rounded-lg transition-colors">
+					<ChevronLeft size={20} />
+					<span className="text-sm font-bold">返回列表</span>
+				</button>
 			</div>
 
 			<div>
 				<div className="flex justify-between items-center mb-4"><h4 className="font-bold text-slate-700">每日行程</h4><button onClick={addEvent} className="flex items-center gap-1 text-sm text-blue-600 font-medium hover:text-blue-700"><Plus size={16} /> 新增</button></div>
 				<div className="space-y-4">
 					{(currentDayData.events || []).map((event) => (
-						<div key={event.id} className="relative pl-6 border-l-2 border-slate-200 ml-2">
-							<div className="absolute -left-[9px] top-0 w-4 h-4 bg-white rounded-full border-2 border-slate-300 shadow-sm flex items-center justify-center p-0.5">
-								<div className="w-full h-full bg-slate-300 rounded-full"></div>
-							</div>
-							<div className="bg-white p-3 rounded-lg shadow-sm border border-slate-100 group hover:shadow-md transition-shadow">
-								<div className="flex items-start gap-3 mb-2">
-									<div className="flex items-center text-slate-800 w-24 shrink-0 mt-1">
-										<input type="time" className="w-full bg-slate-50 border border-slate-200 rounded px-1 text-sm font-bold font-mono focus:outline-none focus:border-blue-300 text-slate-800" value={event.time} onChange={(e) => updateEvent(event.id, 'time', e.target.value)} />
-									</div>
-									<div className="flex-1">
-										<div className="flex items-center gap-2 mb-1">
-											<div className="relative group/type">
-												<button className="p-1 rounded hover:bg-slate-100 text-slate-500"><EventIcon type={event.type} /></button>
-												<div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 shadow-lg rounded-lg p-1 hidden group-hover/type:flex gap-1 z-10">{['food', 'attraction', 'transport', 'stay', 'shopping'].map(t => (<button key={t} onClick={() => updateEvent(event.id, 'type', t)} className={`p-1.5 rounded hover:bg-slate-100 ${event.type === t ? 'bg-blue-50' : ''}`} title={t}><EventIcon type={t} /></button>))}</div>
-											</div>
-											<input type="text" placeholder="地點名稱" className="flex-1 font-bold text-slate-800 bg-transparent focus:outline-none border-b border-transparent focus:border-slate-300 pb-0.5" value={event.location} onChange={(e) => updateEvent(event.id, 'location', e.target.value)} />
-										</div>
-										<textarea placeholder="備註、計畫..." className="w-full bg-transparent text-sm text-slate-500 focus:outline-none resize-none" rows={1} value={event.note} onChange={(e) => updateEvent(event.id, 'note', e.target.value)} />
-									</div>
-									<button onClick={() => deleteEvent(event.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity p-1"><Trash2 size={16} /></button>
-								</div>
-							</div>
-						</div>
+						<EventItem
+							key={event.id}
+							event={event}
+							updateEvent={updateEvent}
+							deleteEvent={deleteEvent}
+						/>
 					))}
 					{(!currentDayData.events || currentDayData.events.length === 0) && (<div className="text-center py-8 text-slate-400 italic text-sm">點擊上方新增按鈕開始規劃行程</div>)}
 				</div>
@@ -476,19 +572,10 @@ const TripDetailView = ({ trip, onUpdateTrip, onDeleteTrip }) => {
 				</div>
 			</div>
 
-			{subView === 'itinerary' && (
-				<div className="bg-white border-b border-slate-200 overflow-x-auto no-scrollbar whitespace-nowrap px-4 py-3 sticky top-[60px] z-10 flex items-center">
-					<div className="flex gap-3">
-						{dates.map((d) => (
-							<button key={d.dateStr} onClick={() => setSelectedDateStr(d.dateStr)} className={`flex flex-col items-center justify-center min-w-[70px] py-2 rounded-xl border transition-all ${selectedDateStr === d.dateStr ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200 scale-105' : 'bg-white border-slate-200 text-slate-500 hover:border-blue-300'}`}><span className="text-xs font-medium opacity-80">{d.dayNum}</span><span className="text-sm font-bold">{d.displayDate}</span></button>
-						))}
-						<button onClick={handleExtendTrip} className="flex flex-col items-center justify-center min-w-[50px] py-2 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all" title="新增一天"><Plus size={20} /></button>
-					</div>
-				</div>
-			)}
-
 			<div className="flex-1 overflow-y-auto p-4">
-				{subView === 'itinerary' && renderItinerary()}
+				{subView === 'itinerary' && (
+					!selectedDateStr ? renderDayList() : renderItinerary()
+				)}
 				{subView === 'toolbox' && <ToolboxView trip={trip} />}
 				{subView === 'expense' && <ExpenseView trip={trip} />}
 			</div>
@@ -602,7 +689,6 @@ const App = () => {
 	const [trips, setTrips] = useState([]); // Default to empty array per user request
 	const [view, setView] = useState('home');
 	const [activeTripId, setActiveTripId] = useState(null);
-	const [showAddModal, setShowAddModal] = useState(false);
 	const [isSidebarOpen, setSidebarOpen] = useState(false);
 	const fileInputRef = useRef(null);
 
@@ -653,7 +739,7 @@ const App = () => {
 			<div className="flex h-screen w-full overflow-hidden font-serif text-slate-800 bg-slate-50">
 				<div className={`fixed md:relative z-40 h-full w-64 bg-white border-r border-slate-200 transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
 					<div className="p-4 h-full flex flex-col">
-						<div className="flex items-center justify-between mb-8"><h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-widest">TravelLog</h1><button onClick={() => setSidebarOpen(false)} className="md:hidden text-slate-400"><X /></button></div>
+						<div className="flex items-center justify-between mb-8"><h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-widest">蘿蔔30之旅</h1><button onClick={() => setSidebarOpen(false)} className="md:hidden text-slate-400"><X /></button></div>
 						<div className="flex-1 overflow-y-auto space-y-2">
 							<button onClick={() => { setView('home'); setSidebarOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-4 ${view === 'home' ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}><Globe size={18} />世界地圖 (首頁)</button>
 							<div className="mb-4 space-y-2 border-b border-slate-100 pb-4">
@@ -664,7 +750,6 @@ const App = () => {
 							</div>
 							<div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">My Trips</div>
 							{trips.map(trip => (<button key={trip.id} onClick={() => { setActiveTripId(trip.id); setView('trip'); setSidebarOpen(false); }} className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeTripId === trip.id && view === 'trip' ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}>{trip.country}</button>))}
-							<button onClick={() => setShowAddModal(true)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-colors dashed border border-transparent hover:border-slate-200"><Plus size={16} /> 新增國家</button>
 						</div>
 						<div className="mt-auto pt-4 border-t border-slate-100 hidden md:block"><button onClick={() => setView('global_expense')} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'global_expense' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}><DollarSign size={18} /> 總帳本</button></div>
 					</div>
@@ -679,11 +764,9 @@ const App = () => {
 					</main>
 					<div className="bg-white border-t border-slate-200 h-16 flex justify-around items-center px-6 md:hidden z-30 pb-safe">
 						<button onClick={() => setView('home')} className={`flex flex-col items-center gap-1 ${view === 'home' ? 'text-blue-600' : 'text-slate-400'}`}><Home size={22} /><span className="text-[10px] font-medium">首頁</span></button>
-						<div className="relative -top-5"><button onClick={() => setShowAddModal(true)} className="bg-blue-600 text-white p-4 rounded-full shadow-lg shadow-blue-200 hover:bg-blue-700 transition-transform active:scale-95"><Plus size={24} /></button></div>
 						<button onClick={() => setView('global_expense')} className={`flex flex-col items-center gap-1 ${view === 'global_expense' ? 'text-blue-600' : 'text-slate-400'}`}><DollarSign size={22} /><span className="text-[10px] font-medium">總帳</span></button>
 					</div>
 				</div>
-				{showAddModal && (<AddTripModal onClose={() => setShowAddModal(false)} onAdd={handleAddTrip} />)}
 			</div>
 		</>
 	);
