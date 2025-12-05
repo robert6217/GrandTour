@@ -4,7 +4,7 @@ import {
 	Trash2, Plane, Sun, CloudRain, Cloud, Home,
 	ChevronRight, ChevronLeft, Menu, X, Clock, MapPin,
 	Phone, Building, Utensils, Camera, Bus, Bed, ShoppingBag,
-	Download, Upload
+	Download, Upload, Database, Check
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -15,8 +15,32 @@ import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot } from 'fi
 // --- Leaflet Import ---
 import L from 'leaflet';
 
-// --- Firebase Init ---
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+let firebaseConfig = {
+	apiKey: "",
+	authDomain: "",
+	projectId: "",
+	storageBucket: "",
+	messagingSenderId: "",
+	appId: ""
+};
+
+try {
+	const storedConfig = typeof window !== 'undefined' ? localStorage.getItem('custom_firebase_config') : null;
+	if (storedConfig) {
+		try {
+			firebaseConfig = JSON.parse(storedConfig);
+			console.log("已載入自訂 Firebase 設定");
+		} catch (e) {
+			console.error("自訂設定檔解析失敗，將嘗試使用預設環境變數", e);
+		}
+	} else if (typeof __firebase_config !== 'undefined') {
+		// 如果沒有自訂設定，則使用環境變數 (Fallback)
+		firebaseConfig = JSON.parse(__firebase_config);
+	}
+} catch (e) {
+	console.error("Firebase 設定初始化錯誤:", e);
+}
+
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
 
 let db, auth;
@@ -587,27 +611,163 @@ const TripDetailView = ({ trip, onUpdateTrip, onDeleteTrip }) => {
 const ExpenseView = ({ trip }) => {
 	const { expenses, loading, addExpense, removeExpense, user } = useExpenses(trip?.id);
 	const total = expenses.reduce((s, e) => s + e.amount, 0);
-	if (!user) return <div className="p-10 text-center text-slate-400">正在連接記帳資料庫...</div>;
+	const [deletingId, setDeletingId] = useState(null);
+	const [isTimeout, setIsTimeout] = useState(false);
+	useEffect(() => {
+		const timer = setTimeout(() => setIsTimeout(true), 3000);
+		return () => clearTimeout(timer);
+	}, []);
+
+	const handleDeleteClick = (id) => {
+		setDeletingId(id);
+	};
+
+	const confirmDelete = async (id) => {
+		await removeExpense(id);
+		setDeletingId(null);
+	};
+
+	const cancelDelete = () => {
+		setDeletingId(null);
+	};
+
+	if (!user) {
+		return (
+			<div className="p-10 text-center text-slate-400">
+				{isTimeout ? (
+					<div className="flex flex-col items-center gap-2">
+						<span>尚無資料庫連線</span>
+						<span className="text-xs">請點擊首頁左側「匯入資料庫設定」以啟用雲端記帳功能</span>
+					</div>
+				) : (
+					<span className="animate-pulse">正在連接記帳資料庫...</span>
+				)}
+			</div>
+		);
+	}
 
 	return (
 		<div className="space-y-4 pb-24 animate-in fade-in duration-300 font-serif">
-			<div className="bg-emerald-600 text-white p-6 rounded-2xl shadow-lg shadow-emerald-200 mb-6"><div className="text-emerald-100 text-sm mb-1">本行程總花費</div><div className="text-4xl font-bold tracking-wider">${total.toLocaleString()}</div></div>
-			<div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-				<div className="p-4 bg-slate-50 font-bold text-slate-700 border-b border-slate-200 flex justify-between items-center"><span>消費紀錄 (雲端同步)</span>{loading && <span className="text-xs text-slate-400 animate-pulse">更新中...</span>}</div>
-				<div className="divide-y divide-slate-100">
-					{expenses.map(exp => (
-						<div key={exp.id} className="p-4 flex justify-between items-center group">
-							<div><div className="font-bold text-slate-800">{exp.item}</div><div className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full inline-block mt-1">{exp.category}</div></div>
-							<div className="flex items-center gap-3"><span className="font-mono font-medium text-emerald-600">${exp.amount.toLocaleString()}</span><button onClick={() => removeExpense(exp.id)} className="text-slate-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button></div>
-						</div>
-					))}
-					{expenses.length === 0 && !loading && <div className="p-8 text-center text-slate-400 text-sm italic">暫無記帳資料</div>}
+			{/* Total Summary Card */}
+			<div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-6 rounded-2xl shadow-lg shadow-emerald-200 mb-6 relative overflow-hidden">
+				<div className="relative z-10">
+					<div className="text-emerald-100 text-sm mb-1 font-medium tracking-wider flex items-center gap-2">
+						<DollarSign size={16} /> 本行程總支出
+					</div>
+					<div className="text-4xl font-bold tracking-widest font-mono">
+						${total.toLocaleString()}
+					</div>
+				</div>
+				<div className="absolute right-0 bottom-0 opacity-10 transform translate-x-4 translate-y-4">
+					<DollarSign size={120} />
 				</div>
 			</div>
-			<form className="bg-white p-4 rounded-xl shadow-sm border border-slate-100" onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.target); addExpense(fd.get('item'), fd.get('amount'), 'General'); e.target.reset(); }}>
-				<h4 className="font-bold text-slate-700 mb-3">新增消費</h4>
-				<div className="grid grid-cols-3 gap-3 mb-3"><input name="item" required placeholder="項目" className="col-span-2 bg-slate-50 p-2 rounded border-none text-sm font-serif" /><input name="amount" required type="number" placeholder="金額" className="col-span-1 bg-slate-50 p-2 rounded border-none text-sm font-serif" /></div><button type="submit" className="w-full bg-slate-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors">新增一筆</button>
+
+			{/* Add Expense Form */}
+			<form
+				className="bg-white p-4 rounded-xl shadow-sm border border-slate-100"
+				onSubmit={(e) => {
+					e.preventDefault();
+					const fd = new FormData(e.target);
+					const item = fd.get('item');
+					const amount = fd.get('amount');
+					if (item && amount) {
+						addExpense(item, amount, 'General');
+						e.target.reset();
+					}
+				}}
+			>
+				<h4 className="font-bold text-slate-700 mb-3 text-sm flex items-center gap-2">
+					<Plus size={16} className="text-emerald-600" /> 新增消費
+				</h4>
+				<div className="flex gap-3 mb-3">
+					<input
+						name="item"
+						required
+						placeholder="項目 (e.g. 晚餐)"
+						className="flex-1 bg-slate-50 p-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all min-w-0"
+					/>
+					<input
+						name="amount"
+						required
+						type="number"
+						placeholder="$"
+						className="w-24 bg-slate-50 p-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all font-mono min-w-0"
+					/>
+				</div>
+				<button
+					type="submit"
+					className="w-full bg-slate-800 text-white py-3 rounded-xl text-sm font-bold hover:bg-slate-900 transition-all active:scale-[0.98] shadow-md shadow-slate-200"
+				>
+					記一筆
+				</button>
 			</form>
+
+			{/* Expense List */}
+			<div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+				<div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+					<span className="font-bold text-slate-700 text-sm">消費明細</span>
+					{loading && <span className="text-xs text-slate-400 animate-pulse">同步中...</span>}
+				</div>
+
+				<div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
+					{expenses.length === 0 && !loading ? (
+						<div className="p-10 text-center text-slate-400 text-sm italic flex flex-col items-center gap-2">
+							<ShoppingBag size={32} className="opacity-20" />
+							<span>暫無消費資料</span>
+						</div>
+					) : (
+						expenses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(exp => (
+							<div key={exp.id} className="p-4 flex justify-between items-center group hover:bg-slate-50 transition-colors">
+								<div className="flex items-center gap-3">
+									<div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+										<DollarSign size={14} />
+									</div>
+									<div>
+										<div className="font-bold text-slate-800 text-sm">{exp.item}</div>
+										<div className="text-[10px] text-slate-400">
+											{exp.createdAt ? new Date(exp.createdAt).toLocaleDateString() : '剛剛'}
+										</div>
+									</div>
+								</div>
+								<div className="flex items-center gap-4">
+									<span className="font-mono font-bold text-slate-700 text-base">
+										${exp.amount.toLocaleString()}
+									</span>
+
+									{/* Inline Delete Confirmation */}
+									{deletingId === exp.id ? (
+										<div className="flex gap-1 animate-in fade-in slide-in-from-right-4 duration-200">
+											<button
+												onClick={() => confirmDelete(exp.id)}
+												className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500 text-white hover:bg-red-600 transition-all shadow-sm"
+												title="確認刪除"
+											>
+												<Check size={16} />
+											</button>
+											<button
+												onClick={cancelDelete}
+												className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition-all"
+												title="取消"
+											>
+												<X size={16} />
+											</button>
+										</div>
+									) : (
+										<button
+											onClick={() => handleDeleteClick(exp.id)}
+											className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"
+											title="刪除"
+										>
+											<Trash2 size={16} />
+										</button>
+									)}
+								</div>
+							</div>
+						))
+					)}
+				</div>
+			</div>
 		</div>
 	);
 };
@@ -686,16 +846,27 @@ const AddTripModal = ({ onClose, onAdd }) => {
 // --- Main App Container ---
 
 const App = () => {
-	const [trips, setTrips] = useState([]); // Default to empty array per user request
+	const [trips, setTrips] = useState(() => {
+		if (typeof window !== 'undefined') {
+			const saved = localStorage.getItem('my_travel_logs');
+			if (saved) {
+				try {
+					const parsed = JSON.parse(saved);
+					if (Array.isArray(parsed) && parsed.length > 0) {
+						return parsed;
+					}
+				} catch (e) {
+					console.error("Failed to parse saved trips", e);
+				}
+			}
+		}
+		return [];
+	});
 	const [view, setView] = useState('home');
 	const [activeTripId, setActiveTripId] = useState(null);
 	const [isSidebarOpen, setSidebarOpen] = useState(false);
 	const fileInputRef = useRef(null);
-
-	useEffect(() => {
-		const saved = localStorage.getItem('my_travel_logs');
-		if (saved) { try { setTrips(JSON.parse(saved)); } catch (e) { } }
-	}, []);
+	const firebaseConfigInputRef = useRef(null);
 
 	useEffect(() => { localStorage.setItem('my_travel_logs', JSON.stringify(trips)); }, [trips]);
 
@@ -732,6 +903,34 @@ const App = () => {
 		e.target.value = '';
 	};
 
+	const handleFirebaseConfigUpload = () => {
+		firebaseConfigInputRef.current.click();
+	};
+
+	const handleFirebaseConfigFileChange = (e) => {
+		const file = e.target.files[0];
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = (event) => {
+			try {
+				const config = JSON.parse(event.target.result);
+				// 基本驗證：檢查是否有 apiKey
+				if (!config.apiKey) {
+					alert("設定檔無效：缺少 apiKey 欄位");
+					return;
+				}
+				localStorage.setItem('custom_firebase_config', JSON.stringify(config));
+				alert("Firebase 設定已匯入！網頁將重新整理以套用新設定。");
+				window.location.reload();
+			} catch (error) {
+				console.error(error);
+				alert("無法讀取設定檔，請確認是有效的 JSON 檔");
+			}
+		};
+		reader.readAsText(file);
+		e.target.value = '';
+	};
+
 	const activeTrip = trips.find(t => t.id === activeTripId);
 
 	return (
@@ -746,7 +945,8 @@ const App = () => {
 								<div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2">Data Management</div>
 								<button onClick={handleDownload} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"><Download size={16} /> 下載行程 (JSON)</button>
 								<button onClick={handleUploadClick} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"><Upload size={16} /> 匯入行程</button>
-								<input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
+								<button onClick={handleFirebaseConfigUpload} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"><Database size={16} /> 設定資料庫</button>
+								<input type="file" ref={firebaseConfigInputRef} onChange={handleFirebaseConfigFileChange} className="hidden" accept=".json" />
 							</div>
 							<div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">My Trips</div>
 							{trips.map(trip => (<button key={trip.id} onClick={() => { setActiveTripId(trip.id); setView('trip'); setSidebarOpen(false); }} className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeTripId === trip.id && view === 'trip' ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}>{trip.country}</button>))}
