@@ -4,7 +4,7 @@ import {
 	Trash2, Plane, Sun, CloudRain, Cloud, Home,
 	ChevronRight, ChevronLeft, Menu, X, Clock, MapPin,
 	Phone, Building, Utensils, Camera, Bus, Bed, ShoppingBag,
-	Download, Upload, Database, Check
+	Download, Upload, Database, Check, RefreshCw
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -412,6 +412,28 @@ const ToolboxView = ({ trip }) => {
 	const tools = trip.tools || {};
 	const embassy = trip.embassy || {};
 	const accommodation = trip.accommodation || {};
+	const [exchangeRate, setExchangeRate] = useState(null);
+	const [loadingRate, setLoadingRate] = useState(false);
+
+	useEffect(() => {
+		if (!tools.currency) return;
+		const fetchRate = async () => {
+			setLoadingRate(true);
+			try {
+				const response = await fetch('https://api.exchangerate-api.com/v4/latest/TWD');
+				if (!response.ok) throw new Error('Network response was not ok');
+				const data = await response.json();
+				const rate = data.rates[tools.currency.toUpperCase()];
+				setExchangeRate(rate);
+			} catch (e) {
+				console.error("Exchange rate fetch error", e);
+				setExchangeRate(null);
+			} finally {
+				setLoadingRate(false);
+			}
+		};
+		fetchRate();
+	}, [tools.currency]);
 
 	return (
 		<div className="space-y-4 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -452,6 +474,29 @@ const ToolboxView = ({ trip }) => {
 					<div className="grid grid-cols-2 gap-4">
 						<div><div className="text-xs text-slate-400">當地貨幣</div><div className="font-bold text-slate-800">{tools.currency || '未知'}</div></div>
 						<div><div className="text-xs text-slate-400">時區</div><div className="font-bold text-slate-800">{tools.timezone || 'UTC'}</div></div>
+						{tools.currency && (
+							<div className="col-span-2 mt-2 pt-2 border-t border-slate-200">
+								<div className="flex items-center justify-between">
+									<div className="text-xs text-slate-400">即時匯率 (TWD Base)</div>
+									{loadingRate && <RefreshCw size={12} className="animate-spin text-slate-400" />}
+								</div>
+								{exchangeRate ? (
+									<div className="mt-1">
+										<div className="flex justify-between items-baseline">
+											<span className="text-sm text-slate-500">1 TWD ≈</span>
+											<span className="font-mono font-bold text-emerald-600 text-lg">{exchangeRate} {tools.currency}</span>
+										</div>
+										<div className="flex justify-between items-baseline mt-1">
+											<span className="text-sm text-slate-500">1 {tools.currency} ≈</span>
+											<span className="font-mono font-bold text-emerald-600 text-sm">{(1/exchangeRate).toFixed(3)} TWD</span>
+										</div>
+										<div className="text-[10px] text-right text-slate-300 mt-1">Source: ExchangeRate-API</div>
+									</div>
+								) : (
+									<div className="text-xs text-red-400 mt-1">無法取得匯率資訊</div>
+								)}
+							</div>
+						)}
 					</div>
 				</div>
 			</div>
