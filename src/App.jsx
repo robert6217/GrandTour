@@ -4,7 +4,7 @@ import {
 	Trash2, Plane, Sun, CloudRain, Cloud, Home,
 	ChevronRight, ChevronLeft, Menu, X, Clock, MapPin,
 	Phone, Building, Utensils, Camera, Bus, Bed, ShoppingBag,
-	Download, Upload, Database, Check, RefreshCw
+	Download, Upload, Database, Check, RefreshCw, ArrowRight 
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -411,7 +411,8 @@ const MapView = ({ trips, onSelectTrip }) => {
 const ToolboxView = ({ trip }) => {
 	const tools = trip.tools || {};
 	const embassy = trip.embassy || {};
-	const accommodation = trip.accommodation || {};
+	const accommodations = trip.accommodations || (trip.accommodation ? [trip.accommodation] : []); // Backward compatibility
+	const flights = trip.flights || [];
 	const [exchangeRate, setExchangeRate] = useState(null);
 	const [loadingRate, setLoadingRate] = useState(false);
 
@@ -437,6 +438,59 @@ const ToolboxView = ({ trip }) => {
 
 	return (
 		<div className="space-y-4 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
+			
+			<div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
+				<h4 className="font-bold text-blue-800 flex items-center gap-2 mb-3"><div className="p-1 bg-blue-100 rounded-lg"><Plane size={16} /></div>航班資訊</h4>
+				<div className="space-y-3">
+					{flights.length > 0 ? flights.map((flt, idx) => (
+						<div key={idx} className="bg-white p-3 rounded-lg shadow-sm border border-blue-100">
+							<div className="flex justify-between items-center mb-2">
+								<div className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{flt.type || 'Flight'}</div>
+								<div className="text-xs text-slate-400 font-mono">{flt.date}</div>
+							</div>
+							<div className="flex items-center justify-between text-slate-800">
+								<div className="text-center">
+									<div className="text-xl font-black">{flt.from}</div>
+									<div className="text-xs font-mono">{flt.depTime}</div>
+								</div>
+								<div className="flex-1 flex flex-col items-center px-2">
+									<div className="text-[10px] text-slate-400 mb-0.5">{flt.airline}</div>
+									<div className="w-full flex items-center gap-1 text-blue-300">
+										<div className="h-px bg-blue-300 flex-1"></div>
+										<Plane size={12} className="rotate-90" />
+										<div className="h-px bg-blue-300 flex-1"></div>
+									</div>
+									<div className="text-[10px] font-bold text-blue-600 mt-0.5">{flt.code}</div>
+								</div>
+								<div className="text-center">
+									<div className="text-xl font-black">{flt.to}</div>
+									<div className="text-xs font-mono">{flt.arrTime}</div>
+								</div>
+							</div>
+						</div>
+					)) : <div className="text-sm text-blue-300 italic text-center py-2">尚未新增航班</div>}
+				</div>
+			</div>
+
+			<div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
+				<h4 className="font-bold text-emerald-800 flex items-center gap-2 mb-3"><div className="p-1 bg-emerald-100 rounded-lg"><Home size={16} /></div>住宿資訊</h4>
+				<div className="space-y-3">
+					{accommodations.length > 0 ? accommodations.map((acc, idx) => (
+						<div key={idx} className="bg-white p-3 rounded-lg shadow-sm border border-emerald-100 text-sm text-emerald-900">
+							<div className="flex justify-between items-start mb-2">
+								<div className="font-bold text-base leading-tight">{acc.name || '未設定飯店'}</div>
+								<button onClick={() => window.open(acc.gmaps_url, '_blank')} className="shrink-0 p-1 bg-emerald-100 text-emerald-600 rounded hover:bg-emerald-200 transition-colors" title="導航"><MapPin size={16} /></button>
+							</div>
+							<div className="grid grid-cols-2 gap-2 bg-emerald-50/50 p-2 rounded mb-2">
+								<div><div className="text-[10px] opacity-60">Check-in</div><div className="font-mono font-bold text-xs">{acc.checkIn}</div></div>
+								<div><div className="text-[10px] opacity-60">Check-out</div><div className="font-mono font-bold text-xs">{acc.checkOut}</div></div>
+							</div>
+							{acc.note && (<div className="text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded border-l-2 border-emerald-300">{acc.note}</div>)}
+						</div>
+					)) : <div className="text-sm text-emerald-300 italic text-center py-2">尚未新增住宿</div>}
+				</div>
+			</div>
+
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 				<div className="bg-red-50 border border-red-100 p-4 rounded-xl">
 					<h4 className="font-bold text-red-800 flex items-center gap-2 mb-3"><div className="p-1 bg-red-100 rounded-lg"><Phone size={16} /></div>緊急救援</h4>
@@ -453,27 +507,13 @@ const ToolboxView = ({ trip }) => {
 						</div>
 					</div>
 				</div>
-				<div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
-					<h4 className="font-bold text-emerald-800 flex items-center gap-2 mb-3"><div className="p-1 bg-emerald-100 rounded-lg"><Home size={16} /></div>住宿資訊</h4>
-					<div className="text-sm text-emerald-900 space-y-3">
-						<div className="flex justify-between items-center"><div className="font-bold text-lg">{accommodation.name || '未設定飯店'}</div></div>
 
-						<div className="grid grid-cols-2 gap-4 bg-white/50 p-2 rounded-lg"><div className="text-center"><div className="text-xs opacity-60">Check-in</div><div className="font-mono font-bold">{accommodation.checkIn}</div></div><div className="text-center"><div className="text-xs opacity-60">Check-out</div><div className="font-mono font-bold">{accommodation.checkOut}</div></div></div>
-						{accommodation.note && (<div className="text-xs bg-emerald-100/50 p-2 rounded text-emerald-800 border-l-2 border-emerald-300">{accommodation.note}</div>)}
-						<button onClick={() => window.open(accommodation.gmaps_url, '_blank')} className="mt-2 w-full py-1.5 bg-emerald-600 text-white rounded text-xs font-bold">導航</button>
-					</div>
-				</div>
-				<div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
-					<h4 className="font-bold text-blue-800 flex items-center gap-2 mb-3"><div className="p-1 bg-blue-100 rounded-lg"><Plane size={16} /></div>航班資訊</h4>
-					<div className="text-sm text-blue-900 space-y-3">
-
-					</div>
-				</div>
 				<div className="bg-slate-50 border border-slate-100 p-4 rounded-xl">
 					<h4 className="font-bold text-slate-700 flex items-center gap-2 mb-3"><div className="p-1 bg-slate-200 rounded-lg"><DollarSign size={16} /></div>基本資訊</h4>
 					<div className="grid grid-cols-2 gap-4">
 						<div><div className="text-xs text-slate-400">當地貨幣</div><div className="font-bold text-slate-800">{tools.currency || '未知'}</div></div>
 						<div><div className="text-xs text-slate-400">時區</div><div className="font-bold text-slate-800">{tools.timezone || 'UTC'}</div></div>
+						
 						{tools.currency && (
 							<div className="col-span-2 mt-2 pt-2 border-t border-slate-200">
 								<div className="flex items-center justify-between">
